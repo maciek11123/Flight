@@ -1463,74 +1463,6 @@ console.error = function(...args) {
     }
     scene.add(instPatchyFog);
 
-    // Companion Seagull Flock
-    const flockGrp = new THREE.Group();
-    scene.add(flockGrp);
-    const birds = [];
-    const matBirdWhite = new THREE.MeshToonMaterial({ color: 0xffffff, fog: true, dithering: true, gradientMap: gradientMap });
-    const matBirdBlue = new THREE.MeshToonMaterial({ color: 0x2255aa, fog: true, dithering: true, gradientMap: gradientMap });
-    const matBirdBeak = new THREE.MeshToonMaterial({ color: 0xffcc00, fog: true, dithering: true, gradientMap: gradientMap });
-    
-    const geoBirdBody = new THREE.ConeGeometry(0.5, 2.5, 5);
-    geoBirdBody.rotateX(-Math.PI / 2); // Tail at -Z, chest at +Z
-    
-    const geoBirdHead = new THREE.ConeGeometry(0.35, 1.2, 5);
-    geoBirdHead.translate(0, 0.6, 0);
-    geoBirdHead.rotateX(Math.PI / 4); // Leans forward
-    
-    const geoBirdBeak = new THREE.ConeGeometry(0.12, 0.8, 4);
-    geoBirdBeak.rotateX(Math.PI / 2); // Points forward (+Z)
-    
-    const geoInnerWing = new THREE.CylinderGeometry(0.4, 0.8, 2.2, 4);
-    geoInnerWing.rotateZ(-Math.PI / 2); // Points right (+X)
-    geoInnerWing.scale(1, 0.05, 1);
-    geoInnerWing.translate(1.1, 0, 0);
-    
-    const geoOuterWing = new THREE.CylinderGeometry(0.01, 0.4, 1.8, 4);
-    geoOuterWing.rotateZ(-Math.PI / 2); // Points right (+X)
-    geoOuterWing.scale(1, 0.05, 1);
-    geoOuterWing.translate(0.9, 0, 0);
-    
-    for(let i=0; i<0; i++) { // Only 1 bird
-        const bird = new THREE.Group();
-        bird.scale.set(0.3, 0.3, 0.3); // Scale down dramatically
-        
-        const body = new THREE.Mesh(geoBirdBody, matBirdWhite);
-        body.position.set(0, 0, -0.2); // Shift slightly back
-        body.castShadow = true;
-        const head = new THREE.Mesh(geoBirdHead, matBirdWhite);
-        head.position.set(0, 0.2, 0.8);
-        const beak = new THREE.Mesh(geoBirdBeak, matBirdBeak);
-        beak.position.set(0, 0.7, 1.5);
-        bird.add(body); bird.add(head); bird.add(beak);
-        
-        // Right Wing Group
-        const wingR = new THREE.Group();
-        const innerR = new THREE.Mesh(geoInnerWing, matBirdWhite);
-        const outerR = new THREE.Mesh(geoOuterWing, matBirdBlue);
-        outerR.position.set(2.2, 0, 0); 
-        wingR.add(innerR); wingR.add(outerR);
-        wingR.position.set(0.3, 0.2, 0.5); // Attach near chest
-        
-        // Left Wing Group
-        const wingL = new THREE.Group();
-        const innerL = new THREE.Mesh(geoInnerWing, matBirdWhite);
-        const outerL = new THREE.Mesh(geoOuterWing, matBirdBlue);
-        outerL.position.set(2.2, 0, 0);
-        wingL.add(innerL); wingL.add(outerL);
-        wingL.position.set(-0.3, 0.2, 0.5); // Attach near chest
-        wingL.rotation.y = Math.PI; // Point left
-        
-        bird.add(wingL); bird.add(wingR);
-        bird.userData = { wingL, wingR, offset: new THREE.Vector3(0,0,0), phase: 0 };
-        birds.push(bird);
-        flockGrp.add(bird);
-    }
-    let flockState = 'IDLE';
-    let flockTimer = 0;
-    let flockTarget = new THREE.Vector3();
-    flockGrp.position.set(0, 200, 0);
-
     // Initialize all to hidden
     const dummyMatrix = new THREE.Matrix4();
     dummyMatrix.setPosition(0, -1000, 0);
@@ -1542,80 +1474,10 @@ console.error = function(...args) {
     });
 
     // ==========================================
-    // 6.25 AMBIENT SKY WHALE    // ==========================================
-    // 6. ANIMATED WHALE (removed)
+    // 6.25 AMBIENT SKY WHALE
     // ==========================================
     const skyWhales = [];
     const whalePod = new THREE.Group();
-
-    // ===================================================
-    // 6.5 BOIDS (BIRDS)
-    // ==========================================
-    const BIRD_COUNT = 40;
-    const geoBird = new THREE.BufferGeometry();
-    const birdScale = 0.6;
-    const bVerts = new Float32Array([
-        // Left Wing
-        0, 0, 1.5*birdScale,
-        -2.0*birdScale, 0, -1.0*birdScale,
-        0, 0, -0.5*birdScale,
-        // Right Wing
-        0, 0, 1.5*birdScale,
-        0, 0, -0.5*birdScale,
-        2.0*birdScale, 0, -1.0*birdScale,
-    ]);
-    geoBird.setAttribute('position', new THREE.BufferAttribute(bVerts, 3));
-    geoBird.computeVertexNormals();
-    
-    const matBird = new THREE.MeshToonMaterial({ color: 0xffffff, side: THREE.DoubleSide, gradientMap });
-    
-    // Add shader modification to flap wings mathematically inside the GPU!
-    matBird.onBeforeCompile = (shader) => {
-        shader.uniforms.time = { value: 0 };
-        shader.vertexShader = `uniform float time;\n` + shader.vertexShader;
-        shader.vertexShader = shader.vertexShader.replace(
-            `#include <begin_vertex>`,
-            `
-            vec3 transformed = vec3( position );
-            // Flap outer wing tips up and down
-            if (abs(position.x) > 0.1) {
-                transformed.y += sin(time * 8.0 + position.x) * 0.5 * ${birdScale};
-            }
-            `
-        );
-        matBird.userData.shader = shader;
-    };
-
-    const instBirds = new THREE.InstancedMesh(geoBird, matBird, 0);
-    instBirds.castShadow = true;
-    instBirds.frustumCulled = false;
-    scene.add(instBirds);
-
-    const birdData = new Float32Array(BIRD_COUNT * 6); 
-    for (let i = 0; i < BIRD_COUNT; i++) {
-        birdData[i * 6 + 0] = (Math.random() - 0.5) * 600;
-        birdData[i * 6 + 1] = 60 + Math.random() * 80;
-        birdData[i * 6 + 2] = (Math.random() - 0.5) * 600;
-        birdData[i * 6 + 3] = (Math.random() - 0.5) * 10;
-        birdData[i * 6 + 4] = (Math.random() - 0.5) * 2;
-        birdData[i * 6 + 5] = (Math.random() - 0.5) * 10;
-    }
-
-    const HIGH_BIRD_COUNT = 60;
-    const instHighBirds = new THREE.InstancedMesh(geoBird, matBird, 0);
-    instHighBirds.castShadow = true;
-    instHighBirds.frustumCulled = false;
-    scene.add(instHighBirds);
-
-    const highBirdData = new Float32Array(HIGH_BIRD_COUNT * 6);
-    for (let i = 0; i < HIGH_BIRD_COUNT; i++) {
-        highBirdData[i * 6 + 0] = (Math.random() - 0.5) * 1200;
-        highBirdData[i * 6 + 1] = 300 + Math.random() * 200; // High altitude!
-        highBirdData[i * 6 + 2] = (Math.random() - 0.5) * 1200;
-        highBirdData[i * 6 + 3] = (Math.random() - 0.5) * 10;
-        highBirdData[i * 6 + 4] = (Math.random() - 0.5) * 2;
-        highBirdData[i * 6 + 5] = (Math.random() - 0.5) * 10;
-    }
 
     // ==========================================
     // FISH AND WHALE
@@ -1738,75 +1600,6 @@ console.error = function(...args) {
             instFish.setMatrixAt(i, dummy.matrix);
         }
         instFish.instanceMatrix.needsUpdate = true;
-    }
-
-    function updateBirdsGen(data, inst, count, tX, tY, tZ, time, dt, centerPull) {
-        for (let i = 0; i < count; i++) {
-            let px = data[i * 6 + 0], py = data[i * 6 + 1], pz = data[i * 6 + 2];
-            let vx = data[i * 6 + 3], vy = data[i * 6 + 4], vz = data[i * 6 + 5];
-
-            let cx = 0, cy = 0, cz = 0;
-            let sx = 0, sy = 0, sz = 0;
-            let ax = 0, ay = 0, az = 0;
-            let n = 0;
-
-            for (let j = 0; j < count; j++) {
-                if (i === j) continue;
-                let dx = px - data[j * 6 + 0], dy = py - data[j * 6 + 1], dz = pz - data[j * 6 + 2];
-                let distSq = dx*dx + dy*dy + dz*dz;
-                
-                if (distSq < 1200) { 
-                    cx += data[j * 6 + 0]; cy += data[j * 6 + 1]; cz += data[j * 6 + 2];
-                    ax += data[j * 6 + 3]; ay += data[j * 6 + 4]; az += data[j * 6 + 5];
-                    n++;
-                }
-                if (distSq < 200) { 
-                    sx += dx; sy += dy; sz += dz;
-                }
-            }
-
-            if (n > 0) {
-                cx /= n; cy /= n; cz /= n;
-                ax /= n; ay /= n; az /= n;
-                vx += (cx - px) * 0.5 * dt;
-                vy += (cy - py) * 0.5 * dt;
-                vz += (cz - pz) * 0.5 * dt;
-                vx += (ax - vx) * 0.1 * dt;
-                vy += (ay - vy) * 0.1 * dt;
-                vz += (az - vz) * 0.1 * dt;
-            }
-            
-            vx += sx * 0.1 * dt; vy += sy * 0.1 * dt; vz += sz * 0.1 * dt;
-
-            let tx = tX - px, ty = tY - py, tz = tZ - pz;
-            let dToT = Math.sqrt(tx*tx + ty*ty + tz*tz);
-            if (dToT > 50) {
-                vx += (tx / dToT) * centerPull * dt;
-                vy += (ty / dToT) * centerPull * dt;
-                vz += (tz / dToT) * centerPull * dt;
-            }
-
-            let spd = Math.sqrt(vx*vx + vy*vy + vz*vz);
-            if (spd > 35) { vx *= 35/spd; vy *= 35/spd; vz *= 35/spd; }
-            if (spd < 15) { vx *= 15/spd; vy *= 15/spd; vz *= 15/spd; }
-
-            px += vx * dt; py += vy * dt; pz += vz * dt;
-            data[i * 6 + 0] = px; data[i * 6 + 1] = py; data[i * 6 + 2] = pz;
-            data[i * 6 + 3] = vx; data[i * 6 + 4] = vy; data[i * 6 + 5] = vz;
-
-            dummy.position.set(px, py, pz);
-            let targetYaw = Math.atan2(vx, vz);
-            dummy.rotation.set(0, targetYaw, Math.sin(time * 15 + i) * 0.4);
-            dummy.scale.setScalar(0.6);
-            dummy.updateMatrix();
-            inst.setMatrixAt(i, dummy.matrix);
-        }
-        inst.instanceMatrix.needsUpdate = true;
-    }
-
-    function updateBirds(playerX, playerY, playerZ, time, dt) {
-        updateBirdsGen(birdData, instBirds, BIRD_COUNT, playerX, playerY + 40, playerZ, time, dt, 5.0);
-        updateBirdsGen(highBirdData, instHighBirds, HIGH_BIRD_COUNT, 0, 400, 0, time, dt, 2.0); // Orbit center
     }
 
     const animalData = new Float32Array(ANIMAL_COUNT * 4);
@@ -3207,24 +3000,7 @@ console.error = function(...args) {
             if (dist < 40) { // 40 is roughly half the portal size (150 / 2 = 75, but smaller hit radius)
                 if (!window.isTeleporting) {
                     window.isTeleporting = true;
-                    
-                    // Simple flash effect before redirect
-                    const flash = document.createElement('div');
-                    flash.style.position = 'fixed';
-                    flash.style.inset = '0';
-                    flash.style.backgroundColor = 'white';
-                    flash.style.opacity = '0';
-                    flash.style.transition = 'opacity 0.5s';
-                    flash.style.zIndex = '999999';
-                    document.body.appendChild(flash);
-                    
-                    setTimeout(() => {
-                        flash.style.opacity = '1';
-                    }, 50);
-                    
-                    setTimeout(() => {
-                        window.location.href = p.url;
-                    }, 600);
+                    window.location.href = p.url;
                 }
             }
         }
@@ -3415,7 +3191,6 @@ console.error = function(...args) {
         dirLight.shadow.camera.updateProjectionMatrix();
 
         updateInstances(playerGrp.position.x, playerGrp.position.z, time, dt, currentYaw);
-        updateBirds(playerGrp.position.x, playerGrp.position.y, playerGrp.position.z, time, dt);
         updateFish(playerGrp.position.x, playerGrp.position.y, playerGrp.position.z, time, dt);
         updateDust(playerGrp.position.x, playerGrp.position.y, playerGrp.position.z, time, dt);
         
@@ -3460,43 +3235,6 @@ console.error = function(...args) {
         }
 
         // Deep clouds track player (Removed)
-
-        // Flocking Birds AI
-        flockTimer -= dt;
-        if (flockState === 'IDLE') {
-            flockTarget.set(playerGrp.position.x + Math.sin(time*0.1)*500, playerGrp.position.y + 200, playerGrp.position.z + Math.cos(time*0.1)*500);
-            if (flockTimer <= 0) { flockState = 'APPROACH'; flockTimer = 5 + Math.random() * 5; }
-        } else if (flockState === 'APPROACH') {
-            const rightOffset = new THREE.Vector3(5, 2, 0).applyQuaternion(playerGrp.quaternion);
-            flockTarget.copy(playerGrp.position).add(rightOffset);
-            if (flockTimer <= 0) { flockState = 'FOLLOW'; flockTimer = 180 + Math.random() * 120; }
-        } else if (flockState === 'FOLLOW') {
-            const rightOffset = new THREE.Vector3(8, 3, -3).applyQuaternion(playerGrp.quaternion);
-            flockTarget.copy(playerGrp.position).add(rightOffset);
-            if (flockTimer <= 0) { flockState = 'LEAVE'; flockTimer = 20 + Math.random() * 20; }
-        } else if (flockState === 'LEAVE') {
-            flockTarget.set(playerGrp.position.x + Math.sin(time*0.1)*2000, playerGrp.position.y + 500, playerGrp.position.z + Math.cos(time*0.1)*2000);
-            if (flockTimer <= 0) { flockState = 'IDLE'; flockTimer = 10 + Math.random() * 20; }
-        }
-        
-        flockGrp.position.lerp(flockTarget, dt * (flockState === 'FOLLOW' ? 2.0 : 0.5));
-        const dir = flockTarget.clone().sub(flockGrp.position).normalize();
-        if (dir.length() > 0.1) {
-            const targetRot = Math.atan2(dir.x, dir.z);
-            let dr = targetRot - flockGrp.rotation.y;
-            while(dr > Math.PI) dr -= Math.PI*2;
-            while(dr < -Math.PI) dr += Math.PI*2;
-            flockGrp.rotation.y += dr * dt * 2.0;
-            flockGrp.rotation.x = THREE.MathUtils.lerp(flockGrp.rotation.x, dir.y * 0.5, dt * 2.0);
-        }
-
-        birds.forEach(bird => {
-            bird.position.lerp(bird.userData.offset, dt);
-            const flapSpeed = (flockState === 'FOLLOW') ? 8 : 4;
-            const flap = Math.sin(time * flapSpeed + bird.userData.phase);
-            bird.userData.wingL.rotation.z = flap * 0.5;
-            bird.userData.wingR.rotation.z = flap * 0.5;
-        });
 
         // Giant Parallel Whale — close enough to feel cinematic
         // Whale flies freely on its own massive circular path
