@@ -829,12 +829,12 @@ console.error = function(...args) {
     geoCloud.computeVertexNormals();
 
     // Meshes
-    const instTree1 = new THREE.InstancedMesh(geoTree1, matTree, Math.floor(3600 * TREE_MULT));
-    const instTree2 = new THREE.InstancedMesh(geoTree2, matTree, Math.floor(3600 * TREE_MULT));
-    const instTree3 = new THREE.InstancedMesh(geoTree3, matTree, Math.floor(3600 * TREE_MULT));
-    const instTree4 = new THREE.InstancedMesh(geoTree4, matTree, Math.floor(2400 * TREE_MULT));
-    const instTree5 = new THREE.InstancedMesh(geoTree5, matTree, 0); // Removed trees with cut off tops
-    const instTree6 = new THREE.InstancedMesh(geoTree6, matTree, 0); // Removed pink trees
+    const instTree1 = new THREE.InstancedMesh(geoTree1, treeMaterials, Math.floor(3600 * TREE_MULT));
+    const instTree2 = new THREE.InstancedMesh(geoTree2, treeMaterials, Math.floor(3600 * TREE_MULT));
+    const instTree3 = new THREE.InstancedMesh(geoTree3, treeMaterials, Math.floor(3600 * TREE_MULT));
+    const instTree4 = new THREE.InstancedMesh(geoTree4, treeMaterials, Math.floor(2400 * TREE_MULT));
+    const instTree5 = new THREE.InstancedMesh(geoTree5, treeMaterials, 0); // Removed trees with cut off tops
+    const instTree6 = new THREE.InstancedMesh(geoTree6, treeMaterials, 0); // Removed pink trees
     
     
     const treeMeshes = [instTree1, instTree2, instTree3, instTree4, instTree5, instTree6];
