@@ -428,7 +428,7 @@ console.error = function(...args) {
         let craterNoise = snoise(x * 0.002, z * 0.002);
         let craterY = Math.abs(craterNoise) * 20.0 - 15.0; 
         let spireNoise = snoise(x * 0.005, z * 0.005);
-        let spireY = (spireNoise > 0.5) ? (spireNoise - 0.5) * 400.0 - 5.0 : spireNoise * 10.0 - 5.0;
+        let spireY = (spireNoise > 0.5) ? (spireNoise - 0.5) * 100.0 - 5.0 : spireNoise * 10.0 - 5.0;
         let landY = snoise(x * 0.003, z * 0.003) * 15.0; 
         landY += snoise(x * 0.015, z * 0.015) * 5.0;
         let fieldY = snoise(x * 0.003, z * 0.003) * 20.0 + 8.0; 
@@ -587,22 +587,33 @@ console.error = function(...args) {
     }
 
     
+    
     const createMushroom = (stemColor, capColor, size, height) => {
         const geos = [];
-        const stem = new THREE.CylinderGeometry(0.3 * size, 0.5 * size, height, 6);
+        const stem = new THREE.CylinderGeometry(0.3 * size, 0.5 * size, height, 5); // low poly stem
         stem.translate(0, height / 2, 0);
         applyColor(stem, stemColor);
         geos.push(stem);
-        const cap = new THREE.SphereGeometry(2.5 * size, 8, 8, 0, Math.PI * 2, 0, Math.PI / 2);
-        cap.translate(0, height, 0);
+        // Low poly cap! (5 radial segments, 3 height segments)
+        const cap = new THREE.SphereGeometry(2.5 * size, 6, 4, 0, Math.PI * 2, 0, Math.PI / 2);
+        cap.translate(0, height - 0.2, 0);
+        // add some random rotation to cap vertices for a jagged natural look
+        const pos = cap.attributes.position;
+        for(let i=0; i<pos.count; i++) {
+            if (pos.getY(i) > height) {
+               pos.setY(i, pos.getY(i) + (Math.random() - 0.5) * 0.5 * size);
+            }
+        }
         applyColor(cap, capColor);
         geos.push(cap);
         const merged = BufferGeometryUtils.mergeGeometries(geos.map(g => g.index ? g.toNonIndexed() : g), false);
         merged.scale(2.5, 2.5, 2.5);
         return merged;
     };
-    const geoTree1 = createMushroom(0x331144, 0x00ffff, 1.0, 3.0);
-    const geoTree2 = createMushroom(0x221133, 0xff00ff, 1.5, 4.5);
+    // Softer bioluminescent colors
+    const geoTree1 = createMushroom(0x4a235a, 0x87cefa, 1.0, 3.0); // Light Sky Blue
+    const geoTree2 = createMushroom(0x2e1114, 0xffb6c1, 1.5, 4.5); // Pastel Pink
+
     
     
     const t3Geos = [];
@@ -611,7 +622,7 @@ console.error = function(...args) {
     applyColor(t3Trunk, 0x111122);
     t3Geos.push(t3Trunk);
     const cone31 = new THREE.ConeGeometry(2.0, 3, 5);
-    cone31.translate(0, 3, 0); applyColor(cone31, 0x00ffff); t3Geos.push(cone31);
+    cone31.translate(0, 3, 0); applyColor(cone31, 0x7fffd4); t3Geos.push(cone31);
     const geoTree3 = BufferGeometryUtils.mergeGeometries(t3Geos.map(g => g.index ? g.toNonIndexed() : g), false);
     geoTree3.scale(2.5, 2.5, 2.5);
 
@@ -621,9 +632,9 @@ console.error = function(...args) {
     applyColor(t4Trunk, 0x221133);
     t4Geos.push(t4Trunk);
     const cone41 = new THREE.ConeGeometry(1.8, 2.5, 5);
-    cone41.translate(0, 2.8, 0); applyColor(cone41, 0xff00ff); t4Geos.push(cone41);
+    cone41.translate(0, 2.8, 0); applyColor(cone41, 0xdda0dd); t4Geos.push(cone41);
     const cone42 = new THREE.ConeGeometry(1.5, 2.5, 5);
-    cone42.translate(0, 4.0, 0); applyColor(cone42, 0xff00ff); t4Geos.push(cone42);
+    cone42.translate(0, 4.0, 0); applyColor(cone42, 0xdda0dd); t4Geos.push(cone42);
     const geoTree4 = BufferGeometryUtils.mergeGeometries(t4Geos.map(g => g.index ? g.toNonIndexed() : g), false);
     geoTree4.scale(2.5, 2.5, 2.5);
 
@@ -1473,10 +1484,10 @@ console.error = function(...args) {
                 const h = getMeshHeight(nx, nz);
 
                 if (h > 0.0 && getPathStrength(nx, nz) < 0.1) { 
-                    dummy.position.set(nx, h + 150 + Math.random() * 200, nz);
+                    dummy.position.set(nx, h + 80 + Math.random() * 150, nz);
                     dummy.rotation.set(Math.random(), Math.random(), Math.random());
                     // Uneven scaling creates distinct natural boulders
-                    dummy.scale.set(15.0 + Math.random() * 30.0, 10.0 + Math.random() * 20.0, 15.0 + Math.random() * 30.0); 
+                    dummy.scale.set(8.0 + Math.random() * 15.0, 5.0 + Math.random() * 10.0, 8.0 + Math.random() * 15.0); 
                 } else {
                     dummy.position.set(0, -1000, 0);
                 }
