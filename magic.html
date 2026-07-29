@@ -428,27 +428,13 @@ console.error = function(...args) {
     }
 
     function terrainHeightJS(x, z) {
-        let biome = snoise(x * 0.0003, z * 0.0003); 
-        let craterNoise = snoise(x * 0.002, z * 0.002);
-        let craterY = Math.abs(craterNoise) * 20.0 - 15.0; 
-        let spireNoise = snoise(x * 0.005, z * 0.005);
-        let spireY = (spireNoise > 0.5) ? (spireNoise - 0.5) * 100.0 - 5.0 : spireNoise * 10.0 - 5.0;
-        let landY = snoise(x * 0.003, z * 0.003) * 15.0; 
-        landY += snoise(x * 0.015, z * 0.015) * 5.0;
-        let fieldY = snoise(x * 0.003, z * 0.003) * 20.0 + 8.0; 
-        fieldY += snoise(x * 0.015, z * 0.015) * 5.0;
-        let y = 0;
-        const msmooth = (e0, e1, v) => {
-            let t = Math.max(0, Math.min(1, (v - e0) / (e1 - e0)));
-            return t * t * (3 - 2 * t);
-        };
-        if (biome < -0.4) y = craterY;
-        else if (biome < -0.2) y = craterY * (1 - msmooth(-0.4, -0.2, biome)) + spireY * msmooth(-0.4, -0.2, biome);
-        else if (biome < 0.0) y = spireY;
-        else if (biome < 0.2) y = spireY * (1 - msmooth(0.0, 0.2, biome)) + landY * msmooth(0.0, 0.2, biome);
-        else if (biome < 0.6) y = landY;
-        else if (biome < 0.8) y = landY * (1 - msmooth(0.6, 0.8, biome)) + fieldY * msmooth(0.6, 0.8, biome);
-        else y = fieldY;
+        let y = snoise(x * 0.002, z * 0.002) * 5.0 + 3.0; 
+        y += snoise(x * 0.01, z * 0.01) * 3.0; 
+        y += Math.abs(snoise(x * 0.05, z * 0.05)) * 1.5;
+        let hillNoise = snoise(x * 0.001, z * 0.001);
+        if (hillNoise > 0.5) {
+            y += (hillNoise - 0.5) * 20.0;
+        }
         return y;
     }
 
@@ -815,21 +801,15 @@ console.error = function(...args) {
     b3.translate(0, 0.3, 0);
     b3.rotateX(-0.2);
 
-    const geoCloud = new THREE.IcosahedronGeometry(25, 2);
-    geoCloud.scale(2.0, 1.0, 1.5); 
-    const cpos = geoCloud.attributes.position;
-    for (let i = 0; i < cpos.count; i++) {
-        let x = cpos.getX(i);
-        let y = cpos.getY(i);
-        let z = cpos.getZ(i);
-        if (y < 0) {
-            y *= 0.3;
-        } else {
-            let billow = Math.sin(x * 0.2) * Math.cos(z * 0.2) * 4.0;
-            y += Math.max(0, billow);
-        }
-        cpos.setXYZ(i, x, y, z);
+    const geoCloud = new THREE.OctahedronGeometry(5, 0);
+    geoCloud.scale(1.0, 3.0, 1.0); 
+    const ccolors = [];
+    for (let i = 0; i < geoCloud.attributes.position.count; i++) {
+        const color = new THREE.Color();
+        color.setHSL(Math.random(), 1.0, 0.5); // Random vibrant colors
+        ccolors.push(color.r, color.g, color.b);
     }
+    geoCloud.setAttribute('color', new THREE.Float32BufferAttribute(ccolors, 3));
     geoCloud.computeVertexNormals();
 
     // Meshes
@@ -850,7 +830,7 @@ console.error = function(...args) {
     const instRocks = new THREE.InstancedMesh(geoRock, matRock, ROCK_COUNT);
     
     const instAnimals = new THREE.InstancedMesh(geoAnimal, matAnimal, ANIMAL_COUNT);
-    const instClouds = new THREE.InstancedMesh(geoCloud, matCloud, CLOUD_COUNT);
+    const instClouds = new THREE.InstancedMesh(geoCloud, matGlow, CLOUD_COUNT);
     const instFlowers = new THREE.InstancedMesh(geoFlower, matFlower, FLOWER_COUNT);
 
     const rockColors = [0xe5d4ba, 0xcbb192, 0xd8c8b8, 0x8a7b69, 0xd2c0a3];
@@ -1413,7 +1393,7 @@ console.error = function(...args) {
                 );
                 dummy.rotation.set(0, Math.random() * Math.PI, 0);
                 // Cumulonimbus shape: wide and tall
-                dummy.scale.set(1.5 + Math.random() * 2.0, 0.8 + Math.random() * 1.0, 1.5 + Math.random() * 2.0); 
+                dummy.scale.set(0.5 + Math.random() * 0.5, 0.5 + Math.random() * 0.5, 0.5 + Math.random() * 0.5); 
             }
             dummy.position.x += 1.5 * dt; // slow drift
             dummy.updateMatrix();
@@ -1449,7 +1429,7 @@ console.error = function(...args) {
                         
                         let isClearing = snoise(nx * 0.003, nz * 0.003 + 50) > 0.2; // Massive sweeping plains
 
-                        if (!isClearing && h > 3.5 && h < 45 && pathVal < 0.1 && (Math.random() > 0.1)) { 
+                        if (!isClearing && h > 2.5 && h < 45 && pathVal < 0.1 && (Math.random() > 0.1)) { 
                             if (!treeGrid.has(cellKey)) {
                                 valid = true;
                             }
@@ -1487,7 +1467,7 @@ console.error = function(...args) {
                 const nz = playerZ + (Math.random() - 0.5) * dist * 2.0;
                 const h = getMeshHeight(nx, nz);
 
-                if (h > 0.0 && getPathStrength(nx, nz) < 0.1) { 
+                if (h > 2.6 && getPathStrength(nx, nz) < 0.1) { 
                     dummy.position.set(nx, h + 80 + Math.random() * 150, nz);
                     dummy.rotation.set(Math.random(), Math.random(), Math.random());
                     // Uneven scaling creates distinct natural boulders
@@ -1615,7 +1595,7 @@ console.error = function(...args) {
                             // Check if this cell belongs to this model type
                             if (getNatureSpawn(nx, nz) === m) {
                                 const h = getMeshHeight(nx, nz);
-                                if (h > 0.0 && getPathStrength(nx, nz) < 0.1) {
+                                if (h > 2.6 && getPathStrength(nx, nz) < 0.1) {
                                     dummy.position.set(nx, h, nz);
                                     dummy.rotation.set(0, Math.random() * Math.PI * 2, 0);
                                     
