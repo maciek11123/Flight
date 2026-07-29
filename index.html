@@ -121,12 +121,13 @@ console.error = function(...args) {
   
   <div id="settings-controls">
     <button id="fullscreen-toggle">⛶ Fullscreen</button>
-    <button id="wind-toggle">Wind: ON</button>
+    <button id="pause-toggle">Pause Flight</button>
+    <button id="wind-toggle">Wind: OFF</button>
     <button id="trails-toggle">Wind Trails: ON</button>
     <button id="photo-toggle">📷 Photo Mode</button>
     <button id="zoom-toggle">Zoom Out</button>
     <button id="hide-ui-toggle">Hide UI</button>
-    <button id="char-toggle">Switch to Whale</button>
+    <button id="char-toggle">Switch to Princess</button>
     <button id="res-toggle">Render: HD</button>
   </div>
   <div id="fps-counter" style="position: fixed; top: 16px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.5); color: #fff; padding: 4px 8px; border-radius: 4px; font-family: monospace; font-size: 12px; z-index: 10; pointer-events: none;">0 FPS</div>
@@ -173,9 +174,10 @@ console.error = function(...args) {
     import { Lensflare, LensflareElement } from 'three/addons/objects/Lensflare.js';
 
 
-    let isWindOn = true;
+    let isWindOn = false;
     let isWindTrailsOn = true;
     let isPhotoMode = false;
+    let isFlightPaused = false;
     let photoControls = null;
     let cameraZoomDist = 12.0;
     let currentFrame = 0;
@@ -193,6 +195,11 @@ console.error = function(...args) {
     
 
     
+    document.getElementById('pause-toggle').addEventListener('click', () => {
+        isFlightPaused = !isFlightPaused;
+        document.getElementById('pause-toggle').innerText = isFlightPaused ? 'Resume Flight' : 'Pause Flight';
+    });
+
     document.getElementById('wind-toggle').addEventListener('click', () => {
         isWindOn = !isWindOn;
         document.getElementById('wind-toggle').innerText = `Wind: ${isWindOn ? 'ON' : 'OFF'}`;
@@ -302,7 +309,7 @@ console.error = function(...args) {
     const renderPass = new RenderPass(scene, camera);
     composer.addPass(renderPass);
     const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.15, 0.6, 0.9);
-    composer.addPass(bloomPass);
+    // composer.addPass(bloomPass); // Disabled bloom
 
     // ==========================================
     // 2. LIGHTING
@@ -513,6 +520,24 @@ console.error = function(...args) {
         return mask;
     }
 
+
+    function getMeshHeight(x, z) {
+        const vertexSpacing = 4000 / 256;
+        const gridX = Math.floor(x / vertexSpacing) * vertexSpacing;
+        const gridZ = Math.floor(z / vertexSpacing) * vertexSpacing;
+        
+        const h00 = terrainHeightJS(gridX, gridZ);
+        const h10 = terrainHeightJS(gridX + vertexSpacing, gridZ);
+        const h01 = terrainHeightJS(gridX, gridZ + vertexSpacing);
+        const h11 = terrainHeightJS(gridX + vertexSpacing, gridZ + vertexSpacing);
+        
+        const tx = (x - gridX) / vertexSpacing;
+        const tz = (z - gridZ) / vertexSpacing;
+        
+        const h0 = h00 * (1 - tx) + h10 * tx;
+        const h1 = h01 * (1 - tx) + h11 * tx;
+        return h0 * (1 - tz) + h1 * tz;
+    }
     function updateTerrainGeometry(playerX, playerZ) {
         const vertexSpacing = 4000 / 256; // 15.625
         const gridX = Math.floor(playerX / vertexSpacing) * vertexSpacing;
@@ -573,10 +598,10 @@ console.error = function(...args) {
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     
     const ROCK_COUNT = isMobile ? 60 : 180;
-    const BUSH_COUNT = isMobile ? 180 : 540;
+    const BUSH_COUNT = isMobile ? 72 : 216;
     const ANIMAL_COUNT = isMobile ? 25 : 50;
     const CLOUD_COUNT = 50;
-    const FLOWER_COUNT = isMobile ? 5000 : 25000; // Optimized for FPS
+    const FLOWER_COUNT = 0; // Removed flowers
     const TREE_MULT = isMobile ? 0.3 : 1.0;
     
     function applyColor(geometry, colorHex) {
@@ -856,8 +881,8 @@ console.error = function(...args) {
     const instTree2 = new THREE.InstancedMesh(geoTree2, matTree, Math.floor(3600 * TREE_MULT));
     const instTree3 = new THREE.InstancedMesh(geoTree3, matTree, Math.floor(3600 * TREE_MULT));
     const instTree4 = new THREE.InstancedMesh(geoTree4, matTree, Math.floor(2400 * TREE_MULT));
-    const instTree5 = new THREE.InstancedMesh(geoTree5, matTree, Math.floor(2400 * TREE_MULT));
-    const instTree6 = new THREE.InstancedMesh(geoTree6, matTree, Math.floor(720 * TREE_MULT)); // Reduced pink trees
+    const instTree5 = new THREE.InstancedMesh(geoTree5, matTree, 0); // Removed trees with cut off tops
+    const instTree6 = new THREE.InstancedMesh(geoTree6, matTree, 0); // Removed pink trees
     
     
     const treeMeshes = [instTree1, instTree2, instTree3, instTree4, instTree5, instTree6];
@@ -1082,7 +1107,7 @@ console.error = function(...args) {
     // Initialize all to hidden
     const dummyMatrix = new THREE.Matrix4();
     dummyMatrix.setPosition(0, -1000, 0);
-    [...treeMeshes, instRocks, instBushes, instClouds, instFlowers].forEach(mesh => {
+    [...treeMeshes, instRocks, instBushes, instClouds, instFlowers, instHighClouds].forEach(mesh => {
         for(let i=0; i<mesh.count; i++) {
             mesh.setMatrixAt(i, dummyMatrix);
         }
@@ -1460,7 +1485,7 @@ console.error = function(...args) {
                     while(!valid && attempts < 15) {
                         nx = playerX + (Math.random() - 0.5) * treeDist * 2.0;
                         nz = playerZ + (Math.random() - 0.5) * treeDist * 2.0;
-                        h = terrainHeightJS(nx, nz);
+                        h = getMeshHeight(nx, nz);
                         pathVal = getPathStrength(nx, nz);
                         cellKey = getTreeCell(nx, nz);
                         
@@ -1502,7 +1527,7 @@ console.error = function(...args) {
             if (Math.abs(dummy.position.x - playerX) > dist || Math.abs(dummy.position.z - playerZ) > dist || dummy.position.y < -500) {
                 const nx = playerX + (Math.random() - 0.5) * dist * 2.0;
                 const nz = playerZ + (Math.random() - 0.5) * dist * 2.0;
-                const h = terrainHeightJS(nx, nz);
+                const h = getMeshHeight(nx, nz);
 
                 if (h > 0.0 && getPathStrength(nx, nz) < 0.1) { 
                     dummy.position.set(nx, h, nz);
@@ -1528,7 +1553,7 @@ console.error = function(...args) {
                 if (Math.abs(dummy.position.x - playerX) > dist || Math.abs(dummy.position.z - playerZ) > dist || dummy.position.y < -500) {
                     const nx = playerX + (Math.random() - 0.5) * dist * 2.0;
                     const nz = playerZ + (Math.random() - 0.5) * dist * 2.0;
-                    const h = terrainHeightJS(nx, nz);
+                    const h = getMeshHeight(nx, nz);
 
                     if (h > 1.5 && h < 40.0 && Math.random() > 0.5) {
                         dummy.position.set(nx, h, nz);
@@ -1555,7 +1580,7 @@ console.error = function(...args) {
                 if (Math.abs(dummy.position.x - playerX) > dist || Math.abs(dummy.position.z - playerZ) > dist || dummy.position.y < -500) {
                     const nx = playerX + (Math.random() - 0.5) * dist * 2.0;
                     const nz = playerZ + (Math.random() - 0.5) * dist * 2.0;
-                    const h = terrainHeightJS(nx, nz);
+                    const h = getMeshHeight(nx, nz);
 
                     if (h < 1.8 && Math.random() < 0.2) { 
                         dummy.position.set(nx, 2.4, nz); // Bob on water line
@@ -1620,7 +1645,7 @@ console.error = function(...args) {
             if (Math.abs(dummy.position.x - playerX) > dist || Math.abs(dummy.position.z - playerZ) > dist || dummy.position.y < -500) {
                 const nx = playerX + (Math.random() - 0.5) * dist * 2.0;
                 const nz = playerZ + (Math.random() - 0.5) * dist * 2.0;
-                const h = terrainHeightJS(nx, nz);
+                const h = getMeshHeight(nx, nz);
                 
                 let isClearing = snoise(nx * 0.003, nz * 0.003 + 50) > 0.2;
                 let validBush = isClearing ? (Math.random() < 0.2) : (Math.random() < 0.05);
@@ -1647,7 +1672,7 @@ console.error = function(...args) {
             if (Math.abs(dummy.position.x - playerX) > dist || Math.abs(dummy.position.z - playerZ) > dist || dummy.position.y < -500) {
                 const nx = playerX + (Math.random() - 0.5) * dist * 2.0;
                 const nz = playerZ + (Math.random() - 0.5) * dist * 2.0;
-                const h = terrainHeightJS(nx, nz);
+                const h = getMeshHeight(nx, nz);
                 
                 let isClearing = snoise(nx * 0.003, nz * 0.003 + 50) > 0.2;
                 let validFlower = isClearing ? (Math.random() < 0.8) : (Math.random() < 0.05);
@@ -1679,7 +1704,7 @@ console.error = function(...args) {
             let ax = animalData[i * 4 + 0];
             let az = animalData[i * 4 + 1];
             let offset = animalData[i * 4 + 2];
-            let h = terrainHeightJS(ax, az);
+            let h = getMeshHeight(ax, az);
 
             // Move animal slowly
             ax += Math.sin(time * 0.5 + offset) * dt * 2.0;
@@ -1689,7 +1714,7 @@ console.error = function(...args) {
             if (Math.abs(ax - playerX) > dist || Math.abs(az - playerZ) > dist) {
                  ax = playerX + (Math.random() - 0.5) * dist * 2.0;
                  az = playerZ + (Math.random() - 0.5) * dist * 2.0;
-                 h = terrainHeightJS(ax, az);
+                 h = getMeshHeight(ax, az);
                  if (h > 2.0 && h < 25 && getPathStrength(ax, az) < 0.2) {
                      animalData[i * 4 + 0] = ax;
                      animalData[i * 4 + 1] = az;
@@ -1739,20 +1764,20 @@ console.error = function(...args) {
     // Character Models State
     let currentCharacter = 'kiki';
     let kikiModel = null;
-    let whaleModel = null;
-    let whaleMixer = null;
+    let princessModel = null;
+    let princessMixer = null;
 
     document.getElementById('char-toggle').addEventListener('click', () => {
         if (currentCharacter === 'kiki') {
-            currentCharacter = 'whale';
+            currentCharacter = 'princess';
             if (kikiModel) kikiModel.visible = false;
-            if (whaleModel) whaleModel.visible = true;
+            if (princessModel) princessModel.visible = true;
             document.getElementById('char-toggle').innerText = 'Switch to Kiki';
         } else {
             currentCharacter = 'kiki';
-            if (whaleModel) whaleModel.visible = false;
+            if (princessModel) princessModel.visible = false;
             if (kikiModel) kikiModel.visible = true;
-            document.getElementById('char-toggle').innerText = 'Switch to Whale';
+            document.getElementById('char-toggle').innerText = 'Switch to Princess';
         }
     });
 
@@ -1803,6 +1828,42 @@ console.error = function(...args) {
             proxyMesh.visible = false;
             kikiModel.visible = (currentCharacter === 'kiki');
             playerVisuals.add(kikiModel);
+        }
+    );
+
+    gltfLoader.load(
+        'Princess.glb',
+        (gltf) => {
+            princessModel = gltf.scene;
+            const box = new THREE.Box3().setFromObject(princessModel);
+            const size = new THREE.Vector3();
+            box.getSize(size);
+            const center = new THREE.Vector3();
+            box.getCenter(center);
+            
+            const maxDim = Math.max(size.x, size.y, size.z);
+            const targetScale = maxDim > 0 ? (2.0 / maxDim) : 1.0;
+            princessModel.scale.set(targetScale, targetScale, targetScale);
+            
+            princessModel.position.x = -center.x * targetScale;
+            princessModel.position.y = -center.y * targetScale;
+            princessModel.position.z = -center.z * targetScale;
+            
+            princessModel.traverse((child) => {
+                if (child.isMesh) {
+                    child.castShadow = true;
+                    child.receiveShadow = true;
+                }
+            });
+            princessModel.rotation.y = Math.PI;
+            princessModel.visible = (currentCharacter === 'princess');
+            playerVisuals.add(princessModel);
+            
+            if (gltf.animations && gltf.animations.length > 0) {
+                princessMixer = new THREE.AnimationMixer(princessModel);
+                const action = princessMixer.clipAction(gltf.animations[0]);
+                action.play();
+            }
         }
     );
 
@@ -2170,8 +2231,8 @@ console.error = function(...args) {
         let dt = Math.min(clock.getDelta(), 0.1);
         const time = clock.getElapsedTime();
         
-        if (whaleMixer && currentCharacter === 'whale') {
-            whaleMixer.update(dt);
+        if (princessMixer && currentCharacter === 'princess') {
+            princessMixer.update(dt);
         }
         
         waterUniforms.uTime.value = time;
@@ -2185,7 +2246,7 @@ console.error = function(...args) {
             lastFpsTime = now;
         }
 
-        const currentGroundY = terrainHeightJS(playerGrp.position.x, playerGrp.position.z);
+        const currentGroundY = getMeshHeight(playerGrp.position.x, playerGrp.position.z);
         const isOcean = Math.max(0, 1.0 - (currentGroundY / 5.0)); // 1.0 over ocean/beach, 0.0 over high ground
         
         // 3-Stage Lighting Engine Lerp
@@ -2222,25 +2283,27 @@ console.error = function(...args) {
             return;
         }
 
-        let oldY = playerGrp.position.y;
         const isBraking = keys.space || touchState.brake;
         const isBoosting = keys.shift || touchState.boost;
 
-        const targetSpeed = isBraking ? 0.0 : (isBoosting ? 250.0 : 18.0); // Extreme super speed
-        velocity += (targetSpeed - velocity) * dt * (isBraking ? 3.0 : (isBoosting ? 1.5 : 1.0));
-        
-        const inputState = {
-            forward: true,
-            up: keys.w || touchState.y < -0.1,
-            down: keys.s || touchState.y > 0.1,
-            left: keys.a || touchState.x < -0.1,
-            right: keys.d || touchState.x > 0.1
-        };
-        tickMovement(dt, inputState, playerGrp, velocity);
+        if (!isFlightPaused) {
+            let oldY = playerGrp.position.y;
 
-        const groundY = terrainHeightJS(playerGrp.position.x, playerGrp.position.z);
-        playerGrp.position.y = Math.min(Math.max(playerGrp.position.y, 18), 600);
-        cameraBase.position.lerp(playerGrp.position, dt * 7.0); // Re-sync camera position
+            const targetSpeed = isBraking ? 0.0 : (isBoosting ? 250.0 : 18.0); // Extreme super speed
+            velocity += (targetSpeed - velocity) * dt * (isBraking ? 3.0 : (isBoosting ? 1.5 : 1.0));
+            
+            const inputState = {
+                forward: true,
+                up: keys.w || touchState.y < -0.1,
+                down: keys.s || touchState.y > 0.1,
+                left: keys.a || touchState.x < -0.1,
+                right: keys.d || touchState.x > 0.1
+            };
+            tickMovement(dt, inputState, playerGrp, velocity);
+
+            playerGrp.position.y = Math.min(Math.max(playerGrp.position.y, 18), 600);
+            cameraBase.position.lerp(playerGrp.position, dt * 7.0); // Re-sync camera position
+        }
         
         // --- Camera Collision Prevention ---
         // --- Camera Collision Prevention & Zoom ---
@@ -2260,6 +2323,7 @@ console.error = function(...args) {
         // -----------------------------------
         
         starField.position.copy(playerGrp.position); // Track player to create infinite distance illusion
+        const groundY = getMeshHeight(playerGrp.position.x, playerGrp.position.z);
         const targetMinY = groundY + 55; // Keep above trees and terrain
         if (playerGrp.position.y < targetMinY) {
         const depth = targetMinY - playerGrp.position.y;
