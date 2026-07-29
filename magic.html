@@ -603,8 +603,30 @@ console.error = function(...args) {
     };
     const geoTree1 = createMushroom(0x331144, 0x00ffff, 1.0, 3.0);
     const geoTree2 = createMushroom(0x221133, 0xff00ff, 1.5, 4.5);
-    const geoTree3 = createMushroom(0x111122, 0xffffff, 0.8, 2.5);
-    const geoTree4 = createMushroom(0x442255, 0x00ff88, 1.2, 3.5);
+    
+    
+    const t3Geos = [];
+    const t3Trunk = new THREE.CylinderGeometry(0.3, 0.5, 3.5, 5);
+    t3Trunk.translate(0, 1.75, 0);
+    applyColor(t3Trunk, 0x111122);
+    t3Geos.push(t3Trunk);
+    const cone31 = new THREE.ConeGeometry(2.0, 3, 5);
+    cone31.translate(0, 3, 0); applyColor(cone31, 0x00ffff); t3Geos.push(cone31);
+    const geoTree3 = BufferGeometryUtils.mergeGeometries(t3Geos.map(g => g.index ? g.toNonIndexed() : g), false);
+    geoTree3.scale(2.5, 2.5, 2.5);
+
+    const t4Geos = [];
+    const t4Trunk = new THREE.CylinderGeometry(0.3, 0.6, 3.0, 5);
+    t4Trunk.translate(0, 1.5, 0);
+    applyColor(t4Trunk, 0x221133);
+    t4Geos.push(t4Trunk);
+    const cone41 = new THREE.ConeGeometry(1.8, 2.5, 5);
+    cone41.translate(0, 2.8, 0); applyColor(cone41, 0xff00ff); t4Geos.push(cone41);
+    const cone42 = new THREE.ConeGeometry(1.5, 2.5, 5);
+    cone42.translate(0, 4.0, 0); applyColor(cone42, 0xff00ff); t4Geos.push(cone42);
+    const geoTree4 = BufferGeometryUtils.mergeGeometries(t4Geos.map(g => g.index ? g.toNonIndexed() : g), false);
+    geoTree4.scale(2.5, 2.5, 2.5);
+
 // Tree 5: Complex Bonsai
     const t5Geos = [];
     const t5Trunk = new THREE.CylinderGeometry(0.6, 1.2, 3.5, 6);
@@ -851,13 +873,15 @@ console.error = function(...args) {
         uTime: { value: 0 }
     };
     
+    
     const waterMat = new THREE.MeshStandardMaterial({ 
-        color: 0x4da9e8, 
-        transparent: false, 
-        opacity: 1.0,
-        roughness: 0.1,
-        metalness: 0.2
+        color: 0xff66b2, 
+        roughness: 0.1, 
+        metalness: 0.8,
+        transparent: true,
+        opacity: 0.8
     });
+
     
     waterMat.onBeforeCompile = (shader) => {
         shader.uniforms.uTime = waterUniforms.uTime;
@@ -1420,7 +1444,7 @@ console.error = function(...args) {
 
                     if (valid) {
                         treeGrid.add(cellKey);
-                        dummy.position.set(nx, h + 150 + Math.random() * 200, nz);
+                        dummy.position.set(nx, h, nz);
                         dummy.rotation.set(0, Math.random() * Math.PI, 0);
                         
                         let scale = 0.7 + Math.random() * 1.1;
@@ -1449,7 +1473,7 @@ console.error = function(...args) {
                 const h = getMeshHeight(nx, nz);
 
                 if (h > 0.0 && getPathStrength(nx, nz) < 0.1) { 
-                    dummy.position.set(nx, h, nz);
+                    dummy.position.set(nx, h + 150 + Math.random() * 200, nz);
                     dummy.rotation.set(Math.random(), Math.random(), Math.random());
                     // Uneven scaling creates distinct natural boulders
                     dummy.scale.set(15.0 + Math.random() * 30.0, 10.0 + Math.random() * 20.0, 15.0 + Math.random() * 30.0); 
