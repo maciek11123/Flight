@@ -2912,71 +2912,6 @@ console.error = function(...args) {
     window.editorState = { isDragging: false };
     initTerrainEditor(scene, camera, renderer, terrain);
 
-    // === PORTAL SYSTEM ===
-    const portals = [];
-    const portalVertexShader = `
-        varying vec2 vUv;
-        void main() {
-            vUv = uv;
-            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-        }
-    `;
-    const portalFragmentShader = `
-        uniform float uTime;
-        uniform vec3 uColor;
-        varying vec2 vUv;
-        
-        void main() {
-            vec2 centeredUv = vUv - 0.5;
-            float dist = length(centeredUv);
-            
-            // Swirl effect
-            float angle = atan(centeredUv.y, centeredUv.x);
-            float swirl = sin(angle * 5.0 + uTime * 3.0 - dist * 20.0);
-            
-            // Edge glow (donut shape)
-            float glow = smoothstep(0.5, 0.4, dist) * smoothstep(0.3, 0.4, dist);
-            
-            // Dark center
-            float centerDarkness = smoothstep(0.0, 0.35, dist);
-            
-            // Combine
-            vec3 finalColor = mix(vec3(0.0, 0.0, 0.1), uColor + swirl * 0.5, glow * centerDarkness);
-            
-            // Alpha blending (transparent outside, solid inside ring)
-            float alpha = smoothstep(0.5, 0.48, dist);
-            
-            gl_FragColor = vec4(finalColor, alpha * (glow + 0.5));
-        }
-    `;
-
-    function createPortal(x, y, z, url, colorHex = 0x8a2be2, title = "Realm") {
-        const geometry = new THREE.PlaneGeometry(150, 150);
-        const material = new THREE.ShaderMaterial({
-            vertexShader: portalVertexShader,
-            fragmentShader: portalFragmentShader,
-            uniforms: {
-                uTime: { value: 0 },
-                uColor: { value: new THREE.Color(colorHex) }
-            },
-            transparent: true,
-            side: THREE.DoubleSide,
-            depthWrite: false,
-            blending: THREE.AdditiveBlending
-        });
-        
-        const portal = new THREE.Mesh(geometry, material);
-        portal.position.set(x, y, z);
-        
-        scene.add(portal);
-        portals.push({ mesh: portal, url: url, material: material });
-    }
-
-    // Create 3 portals in the sky
-    createPortal(0, 60, -200, 'https://github.com/maciek11123', 0x00ffff, "Realm 1"); // Directly in front of spawn!
-    createPortal(-600, 300, 400, 'https://github.com/maciek11123', 0xff00ff, "Realm 2");
-    createPortal(200, 350, 1000, 'https://github.com/maciek11123', 0x00ff00, "Realm 3");
-    // =====================
 
     function animate() {
         requestAnimationFrame(animate);
@@ -2989,22 +2924,7 @@ console.error = function(...args) {
         
         waterUniforms.uTime.value = time;
 
-        // Update Portals
-        for (let i = 0; i < portals.length; i++) {
-            const p = portals[i];
-            p.material.uniforms.uTime.value = time;
-            p.mesh.lookAt(camera.position); // Always face camera
-            
-            // Collision detection with playerGrp
-            const dist = playerGrp.position.distanceTo(p.mesh.position);
-            if (dist < 40) { // 40 is roughly half the portal size (150 / 2 = 75, but smaller hit radius)
-                if (!window.isTeleporting) {
-                    window.isTeleporting = true;
-                    window.location.href = p.url;
-                }
-            }
-        }
-        
+
         currentFrame++;
         framesThisSecond++;
         const now = performance.now();
