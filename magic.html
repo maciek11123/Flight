@@ -390,7 +390,11 @@ console.error = function(...args) {
         );
     };
 
+    
     const matTree = new THREE.MeshToonMaterial({ vertexColors: true, gradientMap, dithering: true });
+    const matGlow = new THREE.MeshBasicMaterial({ vertexColors: true });
+    const treeMaterials = [matTree, matGlow];
+
 
 
 
