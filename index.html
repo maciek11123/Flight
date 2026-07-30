@@ -2214,15 +2214,22 @@ console.error = function(...args) {
         // document.getElementById('fps-counter').style.display = disp;
         document.getElementById('time-toggle').style.display = disp;
 
-            // Terrain Editor panel
-            const terrainEditorUI = document.getElementById('terrain-editor-ui');
-            if (terrainEditorUI) terrainEditorUI.style.display = uiVisible ? 'flex' : 'none';
+        // The terrain editor handles its own visibility state.
+        const terrainEditorUI = document.getElementById('terrain-editor-ui');
+        if (terrainEditorUI && !uiVisible) {
+            terrainEditorUI.style.display = 'none';
+        }
+        
+        const btnToggleEditor = document.getElementById('editor-toggle');
+        if (btnToggleEditor) {
+            btnToggleEditor.style.display = 'none'; // Ensure the button is hidden by default as requested
+        }
 
-            // Crystal Editor panel
-            const crystalEditor = document.getElementById('crystal-editor');
-            if (crystalEditor && crystalEditor.style.display !== 'none') {
-                crystalEditor.style.display = uiVisible ? 'block' : 'none';
-            }
+        // Crystal Editor panel
+        const crystalEditor = document.getElementById('crystal-editor');
+        if (crystalEditor && crystalEditor.style.display !== 'none') {
+            crystalEditor.style.display = uiVisible ? 'block' : 'none';
+        }
 
             // Hide all buttons in settings-controls EXCEPT hide-ui-toggle
             const settingsBtns = document.getElementById('settings-controls').children;

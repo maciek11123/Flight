@@ -134,6 +134,7 @@ export function initTerrainEditor(scene, camera, renderer, terrainMesh) {
         const btnToggleEditor = document.createElement('button');
         btnToggleEditor.id = 'editor-toggle';
         btnToggleEditor.innerText = 'Show Editor';
+        btnToggleEditor.style.display = 'none'; // Hidden by default as requested
         settingsControls.appendChild(btnToggleEditor);
 
         let isEditorHidden = true;
