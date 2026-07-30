@@ -2911,13 +2911,15 @@ console.error = function(...args) {
             scene.fog.color.lerp(new THREE.Color(target.fog), dt * 2);
         }
         
-        // Sun Position Shift
-        const sunTargets = [
-            new THREE.Vector3(0, 500, -20000),       // Dusk: Low on horizon
-            new THREE.Vector3(0, 10000, 15000),      // Twilight (Moon): High and behind
-            new THREE.Vector3(0, 20000, -5000)       // Day: High in the sky
+        // Sun Position Shift (Relative to player)
+        // We use relative vectors so the sun doesn't drift as the player flies.
+        const sunOffsets = [
+            new THREE.Vector3(0, 1000, -20000),      // Dusk: Low on horizon
+            new THREE.Vector3(-10000, 12000, 10000), // Twilight (Moon): High in sky
+            new THREE.Vector3(0, 15000, -5000)       // Day: High in the sky
         ];
-        staticSun.position.lerp(sunTargets[timePhase], dt * 0.5);
+        const targetSunPos = playerGrp.position.clone().add(sunOffsets[timePhase]);
+        staticSun.position.lerp(targetSunPos, dt * 1.5);
         
         ambientLight.color.lerp(new THREE.Color(target.amb), dt * 2);
         ambientLight.intensity += (target.ambI - ambientLight.intensity) * dt * 2;
