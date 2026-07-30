@@ -3035,6 +3035,7 @@ console.error = function(...args) {
         }
 
         if (window.editorState && window.editorState.isEditorMode) {
+            if (window._updateEditorCameraMovement) window._updateEditorCameraMovement();
             if (window.editorState.editorControls) {
                 window.editorState.editorControls.update();
             }

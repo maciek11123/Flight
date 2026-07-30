@@ -666,13 +666,17 @@ export function initTerrainEditor(scene, camera, renderer, terrainMesh) {
     });
 
     // --- Keyboard Shortcuts ---
+    const editorKeys = { w: false, a: false, s: false, d: false, q: false, e: false };
     window.addEventListener('keydown', (e) => {
         if (!isEditorVisible) return;
         if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
 
+        const k = e.key.toLowerCase();
+        if (k in editorKeys) editorKeys[k] = true;
+
         if (e.key === 'g' || e.key === 'G') transformControl.setMode('translate');
         if (e.key === 'r' && !e.ctrlKey) transformControl.setMode('rotate');
-        if (e.key === 's' && !e.ctrlKey) transformControl.setMode('scale');
+        if (e.key === 's' && !e.ctrlKey && !transformControl.object) transformControl.setMode('scale');
         if (e.key === 'd' || e.key === 'D') {
             if (transformControl.object) {
                 const clone = createClone(transformControl.object, new THREE.Vector3(5, 0, 5));
@@ -688,6 +692,34 @@ export function initTerrainEditor(scene, camera, renderer, terrainMesh) {
             saveScene();
         }
     });
+    window.addEventListener('keyup', (e) => {
+        const k = e.key.toLowerCase();
+        if (k in editorKeys) editorKeys[k] = false;
+    });
+
+    function updateEditorCameraMovement() {
+        if (!isEditorVisible || !orbitControls) return;
+        const speed = 2.0;
+        const forward = new THREE.Vector3();
+        camera.getWorldDirection(forward);
+        forward.y = 0;
+        forward.normalize();
+        const right = new THREE.Vector3().crossVectors(forward, new THREE.Vector3(0, 1, 0)).normalize();
+
+        const move = new THREE.Vector3();
+        if (editorKeys.w) move.add(forward.clone().multiplyScalar(speed));
+        if (editorKeys.s) move.add(forward.clone().multiplyScalar(-speed));
+        if (editorKeys.d) move.add(right.clone().multiplyScalar(speed));
+        if (editorKeys.a) move.add(right.clone().multiplyScalar(-speed));
+        if (editorKeys.e) move.y += speed;
+        if (editorKeys.q) move.y -= speed;
+
+        if (move.lengthSq() > 0) {
+            camera.position.add(move);
+            orbitControls.target.add(move);
+        }
+    }
+    window._updateEditorCameraMovement = updateEditorCameraMovement;
 
     // --- Raycasting & Placement ---
     const raycaster = new THREE.Raycaster();
