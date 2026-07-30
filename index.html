@@ -251,9 +251,10 @@ console.error = function(...args) {
 
 
     window.addEventListener('wheel', (e) => {
+        if (window.editorState && window.editorState.isEditorMode) return;
         cameraZoomDist += Math.sign(e.deltaY) * 4.0;
         cameraZoomDist = Math.max(0.5, Math.min(100.0, cameraZoomDist)); // clamp between 0.5 and 100 units
-        
+
     }, { passive: true });
     
     document.getElementById('photo-exit').addEventListener('click', () => {
@@ -348,7 +349,8 @@ console.error = function(...args) {
     scene.add(staticSun);
 
     const lensflare = new Lensflare();
-    lensflare.addElement(new LensflareElement(textureFlare0, 500, 0, dirLight.color)); // Reduced horizon glare
+    const mainFlareElement = new LensflareElement(textureFlare0, 500, 0, dirLight.color);
+    lensflare.addElement(mainFlareElement); // Main sun glare
     lensflare.addElement(new LensflareElement(textureFlare3, 60, 0.6));
     lensflare.addElement(new LensflareElement(textureFlare3, 70, 0.7));
     lensflare.addElement(new LensflareElement(textureFlare3, 120, 0.9));
@@ -1034,7 +1036,10 @@ console.error = function(...args) {
     waterGeo.rotateX(-Math.PI / 2);
     
     const waterUniforms = {
-        uTime: { value: 0 }
+        uTime: { value: 0 },
+        uSunPos: { value: new THREE.Vector3(0, 500, -2500) },
+        uSunColor: { value: new THREE.Color(0xffddaa) },
+        uSunIntensity: { value: 1.0 }
     };
     
     const waterMat = new THREE.MeshStandardMaterial({
@@ -1049,6 +1054,9 @@ console.error = function(...args) {
     
     waterMat.onBeforeCompile = (shader) => {
         shader.uniforms.uTime = waterUniforms.uTime;
+        shader.uniforms.uSunPos = waterUniforms.uSunPos;
+        shader.uniforms.uSunColor = waterUniforms.uSunColor;
+        shader.uniforms.uSunIntensity = waterUniforms.uSunIntensity;
         
         shader.vertexShader = `
             varying vec3 vWorldPos;
@@ -1062,8 +1070,11 @@ console.error = function(...args) {
         
         shader.fragmentShader = `
             uniform float uTime;
+            uniform vec3 uSunPos;
+            uniform vec3 uSunColor;
+            uniform float uSunIntensity;
             varying vec3 vWorldPos;
-            
+
             vec3 permute(vec3 x) { return mod(((x*34.0)+1.0)*x, 289.0); }
             float snoise(vec2 v){
                 const vec4 C = vec4(0.211324865405187, 0.366025403784439, -0.577350269189626, 0.024390243902439);
@@ -1108,6 +1119,39 @@ console.error = function(...args) {
              diffuseColor.rgb = mix(shallowColor, deepColor, depthFade * 0.6);
              diffuseColor.rgb = mix(diffuseColor.rgb, sparkleColor, caustics * 0.35);
              diffuseColor.rgb += sparkleColor * sparkle * 0.2;
+
+             // Sun reflection on water
+             vec3 sunDir = normalize(uSunPos - vWorldPos);
+             vec3 viewDir = normalize(cameraPosition - vWorldPos);
+
+             // Perturbed water normal for shimmer
+             float waveNx = snoise(vWorldPos.xz * 0.03 + vec2(uTime * 0.05, 0.0)) * 0.15;
+             float waveNz = snoise(vWorldPos.xz * 0.03 + vec2(0.0, uTime * 0.04)) * 0.15;
+             float waveNx2 = snoise(vWorldPos.xz * 0.08 + vec2(uTime * 0.1, uTime * 0.03)) * 0.08;
+             float waveNz2 = snoise(vWorldPos.xz * 0.08 + vec2(uTime * 0.04, uTime * 0.1)) * 0.08;
+             vec3 waterNormal = normalize(vec3(waveNx + waveNx2, 1.0, waveNz + waveNz2));
+             vec3 reflectDir = reflect(-sunDir, waterNormal);
+
+             // Fresnel — stronger reflection at grazing angles
+             float fresnel = pow(1.0 - max(dot(viewDir, vec3(0.0, 1.0, 0.0)), 0.0), 3.0);
+             fresnel = 0.3 + 0.7 * fresnel;
+
+             // Sharp sun disc on water
+             float specHard = pow(max(dot(viewDir, reflectDir), 0.0), 128.0);
+             // Medium sun glow
+             float specMed = pow(max(dot(viewDir, reflectDir), 0.0), 8.0);
+             // Wide sun path (stretches when sun is low on horizon)
+             float specWide = pow(max(dot(viewDir, reflectDir), 0.0), 2.0);
+
+             float sunHeight = max(0.0, sunDir.y);
+             float pathStretch = 1.0 + (1.0 - sunHeight) * 3.0;
+
+             vec3 sunReflection = uSunColor * uSunIntensity * fresnel * (
+                 specHard * 3.0 +
+                 specMed * 0.6 * pathStretch +
+                 specWide * 0.08 * pathStretch
+             );
+             diffuseColor.rgb += sunReflection;
             `
         );
     };
@@ -2188,6 +2232,7 @@ console.error = function(...args) {
                 }
             });
             princessModel.rotation.y = Math.PI;
+            proxyMesh.visible = false;
             princessModel.visible = (currentCharacter === 'princess');
             playerVisuals.add(princessModel);
 
@@ -2759,12 +2804,14 @@ console.error = function(...args) {
     let previousPointerPos = { x: 0, y: 0 };
 
     const onPointerDown = (event) => {
+        if (window.editorState && window.editorState.isEditorMode) return;
         isDragging = true;
         previousPointerPos = { x: event.clientX, y: event.clientY };
     };
 
     const onPointerMove = (event) => {
         if (!isDragging) return;
+        if (window.editorState && window.editorState.isEditorMode) return;
         const deltaX = event.clientX - previousPointerPos.x;
         const deltaY = event.clientY - previousPointerPos.y;
 
@@ -2876,7 +2923,26 @@ console.error = function(...args) {
     let framesThisSecond = 0;
 
     // Terrain Editor Integration
-    window.editorState = { isDragging: false };
+    window.editorState = {
+        isDragging: false,
+        isEditorMode: false,
+        camera: camera,
+        renderer: renderer,
+        playerGrp: playerGrp,
+        cameraBase: cameraBase,
+        cameraPivot: cameraPivot,
+        scene: scene,
+        pauseFlight: () => {
+            isFlightPaused = true;
+            document.getElementById('pause-toggle').innerText = 'Resume Flight';
+        },
+        resumeFlight: () => {
+            isFlightPaused = false;
+            document.getElementById('pause-toggle').innerText = 'Pause Flight';
+        },
+        isFlightPaused: () => isFlightPaused,
+        editorControls: null
+    };
     initTerrainEditor(scene, camera, renderer, terrain);
 
 
@@ -2912,16 +2978,34 @@ console.error = function(...args) {
         }
         
         // Sun Position Shift (Relative to player)
-        // Kept within camera.far (3000) so the actual sun mesh isn't clipped
-        const sunDist = 2800;
+        // Player flies at y~18-600, water at y=2.4, horizon = sun Y near player Y
+        const sunDist = 2500;
         const sunOffsets = [
-            new THREE.Vector3(0, 150, -sunDist),                    // Dusk: Very low on horizon, straight ahead
-            new THREE.Vector3(sunDist * 0.3, sunDist * 0.6, -sunDist * 0.7), // Twilight: High up and slightly right
-            new THREE.Vector3(0, sunDist * 0.5, -sunDist * 0.8)     // Day: High up, straight ahead
+            new THREE.Vector3(sunDist * 0.15, 30, -sunDist),              // Dusk: just above horizon
+            new THREE.Vector3(-sunDist * 0.2, -30, -sunDist * 0.95),      // Twilight: half below horizon
+            new THREE.Vector3(sunDist * 0.1, sunDist * 0.55, -sunDist * 0.8) // Day: well above horizon
         ];
+        const sunColors = [
+            new THREE.Color(0xffcc77),  // Dusk: warm amber gold
+            new THREE.Color(0xff6644),  // Twilight: deep orange-red
+            new THREE.Color(0xfffef0)   // Day: bright white-yellow
+        ];
+        const sunGlowSizes = [800, 1100, 400]; // Dusk: big warm glow, Twilight: massive glare, Day: crisp
+
         const targetSunPos = playerGrp.position.clone().add(sunOffsets[timePhase]);
         staticSun.position.lerp(targetSunPos, dt * 1.5);
-        
+        sunMesh.material.color.lerp(sunColors[timePhase], dt * 2);
+        mainFlareElement.size += (sunGlowSizes[timePhase] - mainFlareElement.size) * dt * 2;
+        const sunScales = [1.0, 1.4, 0.8]; // Twilight: bigger sun disc for half-hidden effect
+        const targetSunScale = sunScales[timePhase];
+        sunMesh.scale.lerp(new THREE.Vector3(targetSunScale, targetSunScale, targetSunScale), dt * 2);
+
+        // Update water sun reflection uniforms
+        waterUniforms.uSunPos.value.copy(staticSun.position);
+        waterUniforms.uSunColor.value.lerp(sunColors[timePhase], dt * 2);
+        const sunIntensities = [1.5, 2.5, 0.7]; // Dusk: strong, Twilight: intense glare, Day: subtle
+        waterUniforms.uSunIntensity.value += (sunIntensities[timePhase] - waterUniforms.uSunIntensity.value) * dt * 2;
+
         ambientLight.color.lerp(new THREE.Color(target.amb), dt * 2);
         ambientLight.intensity += (target.ambI - ambientLight.intensity) * dt * 2;
         dirLight.color.lerp(new THREE.Color(target.dir), dt * 2);
@@ -2946,6 +3030,14 @@ console.error = function(...args) {
             dt = 0;
             if (photoControls) {
                 photoControls.update();
+            }
+            composer.render();
+            return;
+        }
+
+        if (window.editorState && window.editorState.isEditorMode) {
+            if (window.editorState.editorControls) {
+                window.editorState.editorControls.update();
             }
             composer.render();
             return;

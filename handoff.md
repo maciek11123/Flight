@@ -1,49 +1,36 @@
-# Project Handoff: KIKI FINAL 3
+# Flight: Crystal - Project Handoff
 
 ## Overview
-This project is an advanced, WebGL/Three.js-based interactive flight and exploration experience. It features endless procedural terrain, dynamic lighting, real-time audio visualization, instanced rendering for massive amounts of environmental assets, and multiple interactive editors for real-time customization.
+This is a handoff document for the current state of the Flight game (specifically the "Crystal" or "Kiki Final 3" branch). The project is a web-based, standalone 3D flying exploration game built entirely in Vanilla JS using Three.js and no build tools.
 
-## Core Architecture & Stack
-- **Engine**: Three.js (Vanilla JS + HTML)
-- **Main Entry Point**: `index.html` (contains core game loop, UI logic, rendering setup)
-- **Key Scripts**:
-  - `TerrainEditor.js`: Handles drag-and-drop placement, snapping, and saving/loading of external GLB models.
-  - `islandGenerator_v2.js` / `particleWhaleGenerator.js`: Procedural generation logic.
-  - Background audio analyzers built into the main loop to drive terrain/cloud pulsing.
+## Architecture
+- **Single Monolith Architecture**: The game fundamentally runs from `index.html`. It dynamically loads Three.js via CDNs and directly manipulates the DOM.
+- **Dependencies**: Three.js (r128), OrbitControls, GLTFLoader, Lensflare, and various compressed texture loaders (KTX2, Meshopt).
+- **Core Systems**:
+  - **Procedural Terrain**: A 4000x4000 `PlaneGeometry` terrain that alters its heights based on simplex noise.
+  - **Shaders**: Extensive use of `onBeforeCompile` to inject custom shader logic into `MeshStandardMaterial` for water caustics, depth fading, and sparkling.
+  - **Time of Day Engine**: A 3-phase state machine (Dusk, Twilight, Day) that smoothly lerps lighting, fog, ambient, and sun position (via `staticSun`) using `dt` in the render loop.
+  - **Instancing**: Utilizes `InstancedMesh` heavily for trees, rocks, crystals, and flowers to maintain high FPS.
 
-## Key Features & Systems
-1. **Procedural Environment (Instanced Rendering)**:
-   - Terrain is dynamically decorated using `THREE.InstancedMesh` for extremely high performance.
-   - Handles thousands of instances: Rocks, Trees, Bushes, Flowers, Animals, Castles, Houses, Boats, High Clouds, and Low Clouds.
-   - **Spawning Logic**: Instances dynamically reposition themselves ahead of the player as they fly (`updateInstances`), ensuring an endless world. Spawns are snapped to the outer perimeter to prevent visual "pop-in".
+## Recent Features Implemented
+- **UI Restructuring**:
+  - The UI has been heavily reorganized to group complex options into neat submenus (Music, Editor).
+  - The "Time of Day" button dynamically updates with the current lighting state.
+  - Fullscreen and FPS counters remain persistently visible even when the rest of the UI is hidden.
+- **Mobile Optimizations**:
+  - PC control hints are dynamically suppressed on mobile devices.
+  - The Joystick and Boost/Brake buttons remain visible when the main UI is hidden.
+  - Changing the Quality setting to Low/Med automatically toggles shadows off to save battery and boost performance.
+- **Fog and Lighting**:
+  - Distance fog has been strictly clamped between `1500` and `2000` units to perfectly align with the absolute edge of the procedural terrain, fixing issues where the terrain sharply ended before fading into the sky.
+  - Sun tracking was re-enabled! The physical sun mesh was brought securely inside the camera frustum (`2800` distance) and mathematically constrained to stay in front of the player and shift correctly as the time of day cycles.
+- **Defaults**:
+  - The `Princess.glb` character model is now loaded and selected by default on startup.
 
-2. **Flight Mechanics & Player Controllers**:
-   - Supports keyboard (WASD/Arrows + Shift for boost, Space for brake) and touch joysticks.
-   - Allows switching between character models (e.g., Kiki on a broom, Princess).
-   - Features procedural wind trails (`instTrails`) during boosting.
+## Next Steps / Outstanding Tasks
+- **Localized Rain**: The implementation of localized rain clouds was shelved/paused by request. The logic can be picked back up by adding a new instanced particle system attached to the clouds or player.
+- **General Expansion**: The `Crystals` subdirectory and logic inside `TerrainEditor.js` is set up for further environmental editing.
 
-3. **Custom Shader Ecosystem**:
-   - **Flying Crystals**: Uses `onBeforeCompile` to inject a dynamic, 6-color vertical gradient (`uCustomColors`) with adjustable Hue, Contrast, Base Glow, and Night Glow.
-   - **Terrain / Audio Reactivity**: The terrain shader pulses to the beat of uploaded music via `analyser.getAverageFrequency()`.
-   - **Lighting / Time of Day**: Real-time transition between Day, Dusk, and Twilight, affecting ambient light, directional shadows, and fog density.
-
-4. **In-Game Editors**:
-   - **Crystal & Env Editor**: A custom UI allowing the user to tweak the exact colors, opacity, and shaders of the Flying Crystals, as well as the instance colors of the Ground Rocks. State is automatically saved to `localStorage`.
-   - **Terrain Editor**: Allows uploading `.glb` files, placing them manually into the world, and exporting the layout to a JSON file (`Save JSON`).
-
-## Recent Fixes & Modifications
-- **Crystal Editor Overhaul**: Disconnected the ground crystal color pickers from the flying crystal shaders. Added 6 dedicated color pickers for the Flying Crystals that feed directly into a custom GLSL vertical gradient shader, preserving the "neon sunset" look.
-- **LocalStorage Persistence**: The Crystal Editor now perfectly preserves all sliders and colors across page refreshes.
-- **Pop-in Prevention**: Refactored the `updateInstances` logic to ensure large objects (like High Clouds and Flying Crystals) spawn strictly at the *horizon boundary* (`dist * 0.95`), eliminating giant objects abruptly popping into the camera's view.
-
-## Known Issues / Next Steps
-- **Performance Tuning**: As more instanced meshes are added, draw calls are low but vertex counts are high. Keep an eye on Polycount, especially for uploaded GLBs in the Terrain Editor.
-- **Collision Detection**: Currently, the player glides over the terrain heightmap (`getMeshHeight`), but does not have rigid body collisions with instanced objects (trees, castles).
-- **Editor Expansions**: The Terrain Editor currently exports to JSON, but the loading of that JSON back into the environment (persisting user-built towns) may require further fleshing out in `index.html`.
-
-## File Map
-- `index.html`: The monolithic engine file.
-- `TerrainEditor.js`: External model placement UI.
-- `models/`: GLB assets (Kiki, Princess, etc.).
-- `assets/`: Soundtracks and images.
-- `package.json` / `vite.config.ts`: Used if running via Vite, though it functions as a static site.
+## Known Quirks
+- The game uses a `logarithmicDepthBuffer`, which has caused occasional headaches with standard Three.js fog. Keep this in mind when implementing custom shaders (ensure `#include <logdepthbuf_fragment>` is present).
+- `staticSun` is technically not static; it dynamically calculates an offset from `playerGrp.position` in the render loop so it doesn't drift away when exploring the terrain boundaries.
