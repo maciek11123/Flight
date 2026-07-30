@@ -129,13 +129,19 @@ export function initTerrainEditor(scene, camera, renderer, terrainMesh) {
 
 
     // --- UI Logic ---
-    const settingsControls = document.getElementById('settings-controls');
-    if (settingsControls) {
+    const editorSubmenu = document.getElementById('editor-submenu');
+    if (editorSubmenu) {
         const btnToggleEditor = document.createElement('button');
         btnToggleEditor.id = 'editor-toggle';
-        btnToggleEditor.innerText = 'Show Editor';
-        btnToggleEditor.style.display = 'none'; // Hidden by default as requested
-        settingsControls.appendChild(btnToggleEditor);
+        btnToggleEditor.innerText = 'Terrain Editor';
+        
+        // Insert right after the quality toggle
+        const qualityToggle = document.getElementById('quality-toggle');
+        if (qualityToggle && qualityToggle.nextSibling) {
+            editorSubmenu.insertBefore(btnToggleEditor, qualityToggle.nextSibling);
+        } else {
+            editorSubmenu.appendChild(btnToggleEditor);
+        }
 
         let isEditorHidden = true;
         btnToggleEditor.addEventListener('click', () => {

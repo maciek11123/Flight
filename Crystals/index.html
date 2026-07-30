@@ -98,22 +98,36 @@ console.error = function(...args) {
 </script>
   <div id="app"></div>
   <div id="settings-controls">
-    <button id="time-toggle">Switch to Dusk</button>
-    <button id="music-toggle">▶ Music</button>
-    <button id="track-toggle" style="display:none">Track: Valley Wind</button>
     <button id="fullscreen-toggle">⛶ Fullscreen</button>
+    <button id="hide-ui-toggle">Hide UI</button>
+    <button id="time-toggle">Time of day</button>
+
+    <div id="music-menu-container" style="display: flex; flex-direction: column; gap: 5px;">
+        <button id="music-toggle">▶ Music</button>
+        <div id="music-submenu" style="display: none; flex-direction: column; gap: 5px; margin-left: 15px;">
+            <button id="track-toggle">Track: Valley Wind</button>
+        </div>
+    </div>
+
+    <button id="char-toggle">Change model</button>
+
+    <div id="editor-menu-container" style="display: flex; flex-direction: column; gap: 5px;">
+        <button id="editor-menu-toggle">Editor</button>
+        <div id="editor-submenu" style="display: none; flex-direction: column; gap: 5px; margin-left: 15px;">
+            <select id="quality-toggle" style="background: rgba(255,255,255,0.7); border: none; padding: 10px 15px; border-radius: 20px; font-weight: bold; cursor: pointer; text-align: center;">
+              <option value="low">Quality: Low</option>
+              <option value="medium" selected>Quality: Medium</option>
+              <option value="high">Quality: High</option>
+            </select>
+            <!-- terrain editor button will be injected here -->
+            <button id="crystal-edit-toggle">Edit Crystals</button>
+            <button id="shadow-toggle">Shadows: ON</button>
+            <button id="cloud-toggle">Clouds: ON</button>
+        </div>
+    </div>
+
     <button id="pause-toggle">Pause Flight</button>
     <button id="trails-toggle">Wind Trails: ON</button>
-    <button id="hide-ui-toggle">Hide UI</button>
-    <button id="char-toggle">Switch to Princess</button>
-    <button id="crystal-edit-toggle">Edit Crystals</button>
-    <select id="quality-toggle" style="background: rgba(255,255,255,0.7); border: none; padding: 10px 15px; border-radius: 20px; font-weight: bold; cursor: pointer; text-align: center;">
-      <option value="low">Quality: Low</option>
-      <option value="medium" selected>Quality: Medium</option>
-      <option value="high">Quality: High</option>
-    </select>
-    <button id="shadow-toggle">Shadows: ON</button>
-    <button id="cloud-toggle">Clouds: ON</button>
   </div>
   <div id="fps-counter" style="position: fixed; top: 16px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.5); color: #fff; padding: 4px 8px; border-radius: 4px; font-family: monospace; font-size: 12px; z-index: 10; pointer-events: none;">0 FPS</div>
   
@@ -1984,7 +1998,7 @@ console.error = function(...args) {
     playerVisuals.add(proxyMesh);
 
     // Character Models State
-    let currentCharacter = 'kiki';
+    let currentCharacter = 'princess'; // Princess by default
     let kikiModel = null;
     let princessModel = null;
     let princessMixer = null;
@@ -1994,14 +2008,12 @@ console.error = function(...args) {
             currentCharacter = 'princess';
             if (kikiModel) kikiModel.visible = false;
             if (princessModel) princessModel.visible = true;
-            document.getElementById('char-toggle').innerText = 'Switch to Kiki';
         } else {
             currentCharacter = 'kiki';
             if (princessModel) princessModel.visible = false;
-                    if (kikiModel) kikiModel.visible = true;
-                    document.getElementById('char-toggle').innerText = 'Switch to Princess';
-                }
-            });
+            if (kikiModel) kikiModel.visible = true;
+        }
+    });
 
             // Shadow Toggle Logic
             let shadowsEnabled = true;
@@ -2045,6 +2057,20 @@ console.error = function(...args) {
                 if (typeof treeMeshes !== 'undefined') instances.push(...treeMeshes);
                 if (typeof instClouds !== 'undefined') instances.push(instClouds);
                 if (typeof instCrystals !== 'undefined') instances.push(instCrystals);
+
+                if (level === 'low' || level === 'medium') {
+                    if (shadowsEnabled) {
+                        shadowsEnabled = false;
+                        document.getElementById('shadow-toggle').innerText = 'Shadows: OFF';
+                        if (dirLight) dirLight.castShadow = false;
+                    }
+                } else if (level === 'high') {
+                    if (!shadowsEnabled) {
+                        shadowsEnabled = true;
+                        document.getElementById('shadow-toggle').innerText = 'Shadows: ON';
+                        if (dirLight) dirLight.castShadow = true;
+                    }
+                }
 
                 if (level === 'low') {
                     renderer.setPixelRatio(0.5);
@@ -2187,7 +2213,7 @@ console.error = function(...args) {
     let pcControlsShown = false;
 
     window.addEventListener('keydown', e => {
-        if (!pcControlsShown && e.key !== 'F12' && e.key !== 'F5') {
+        if (!isMobile && !pcControlsShown && e.isTrusted && e.key !== 'F12' && e.key !== 'F5') {
             document.getElementById('touch-controls').style.display = 'none';
             document.getElementById('pc-controls-hint').style.display = 'block';
             pcControlsShown = true;
@@ -2231,13 +2257,19 @@ console.error = function(...args) {
             crystalEditor.style.display = uiVisible ? 'block' : 'none';
         }
 
-            // Hide all buttons in settings-controls EXCEPT hide-ui-toggle
-            const settingsBtns = document.getElementById('settings-controls').children;
-            for(let i=0; i<settingsBtns.length; i++) {
-                if (settingsBtns[i].id !== 'hide-ui-toggle') {
-                    settingsBtns[i].style.display = uiVisible ? 'block' : 'none';
+        // Hide/Show all buttons in settings-controls EXCEPT hide-ui-toggle and fullscreen-toggle
+        const settingsBtns = document.getElementById('settings-controls').children;
+        for(let i=0; i<settingsBtns.length; i++) {
+            const btn = settingsBtns[i];
+            if (btn.id !== 'hide-ui-toggle' && btn.id !== 'fullscreen-toggle') {
+                if (!uiVisible) {
+                    btn.dataset.originalDisplay = btn.style.display || getComputedStyle(btn).display;
+                    btn.style.display = 'none';
+                } else {
+                    btn.style.display = btn.dataset.originalDisplay || 'block';
                 }
             }
+        }
 
             document.getElementById('hide-ui-toggle').innerText = uiVisible ? 'Hide UI' : 'Show UI';
             document.getElementById('hide-ui-toggle').style.opacity = uiVisible ? '1' : '0.5';
@@ -2382,6 +2414,11 @@ console.error = function(...args) {
     // Crystal Editor Logic
     // ==========================================
     const crystalEditor = document.getElementById('crystal-editor');
+    document.getElementById('editor-menu-toggle').addEventListener('click', () => {
+        const submenu = document.getElementById('editor-submenu');
+        submenu.style.display = submenu.style.display === 'none' ? 'flex' : 'none';
+    });
+
     document.getElementById('crystal-edit-toggle').addEventListener('click', () => {
         crystalEditor.style.display = crystalEditor.style.display === 'none' ? 'block' : 'none';
     });
@@ -3120,9 +3157,6 @@ console.error = function(...args) {
     if (timeToggleBtn) {
         timeToggleBtn.addEventListener('click', () => {
             timePhase = (timePhase + 1) % 3;
-            if (timePhase === 0) timeToggleBtn.innerText = 'Switch to Dusk';
-            else if (timePhase === 1) timeToggleBtn.innerText = 'Switch to Twilight';
-            else timeToggleBtn.innerText = 'Switch to Day';
         });
     }
 
@@ -3401,7 +3435,7 @@ console.error = function(...args) {
         }
 
         isMusicPlaying = !isMusicPlaying;
-        const trackBtn = document.getElementById('track-toggle');
+        const submenu = document.getElementById('music-submenu');
         if (isMusicPlaying) {
             sequenceTime = 0;
             chordIndex = 0;
@@ -3409,11 +3443,11 @@ console.error = function(...args) {
             nextNoteTime = audioCtx.currentTime + 0.1;
             scheduleNotes();
             document.getElementById('music-toggle').innerText = "⏸ Music";
-            trackBtn.style.display = "block";
+            submenu.style.display = "flex";
         } else {
             clearTimeout(musicTimerID);
             document.getElementById('music-toggle').innerText = "▶ Music";
-            trackBtn.style.display = "none";
+            submenu.style.display = "none";
         }
     });
 
