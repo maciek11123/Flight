@@ -240,9 +240,6 @@ console.error = function(...args) {
         cameraZoomDist += Math.sign(e.deltaY) * 4.0;
         cameraZoomDist = Math.max(0.5, Math.min(100.0, cameraZoomDist)); // clamp between 0.5 and 100 units
         
-        // Auto-update button text if using wheel
-        if (cameraZoomDist > 25.0) document.getElementById('zoom-toggle').innerText = 'Zoom In';
-        else document.getElementById('zoom-toggle').innerText = 'Zoom Out';
     }, { passive: true });
     
     document.getElementById('photo-exit').addEventListener('click', () => {
@@ -2329,9 +2326,6 @@ console.error = function(...args) {
             
             cameraZoomDist = initialZoomDist * (initialPinchDist / newDist);
             cameraZoomDist = Math.max(0.5, Math.min(100.0, cameraZoomDist));
-            
-            if (cameraZoomDist > 25.0) document.getElementById('zoom-toggle').innerText = 'Zoom In';
-            else document.getElementById('zoom-toggle').innerText = 'Zoom Out';
         } else {
             for(let touch of e.changedTouches) {
                 if(touch.identifier === activeTouchId) updateJoystick(touch);
