@@ -305,7 +305,7 @@ console.error = function(...args) {
     const container = document.getElementById('app');
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0xc9e8ff);
-    // scene.fog = new THREE.Fog(0xc9e8ff, 8000, 18000); // FOG DISABLED
+    scene.fog = new THREE.Fog(0xc9e8ff, 2000, 3000);
 
 
 
@@ -2884,21 +2884,7 @@ console.error = function(...args) {
             scene.fog.color.lerp(new THREE.Color(target.fog), dt * 2);
         }
         
-        // Distance fog: slight fog at max distance for Day Mode, clear skies otherwise
-        const fogAltitude = Math.max(0, playerGrp.position.y);
-        let dynamicFar = 30000;
-        let dynamicNear = 25000;
-        
-        if (timePhase === 0) { // Day Mode
-            dynamicFar = 9000 + fogAltitude * 20.0;
-            dynamicNear = 3500 + fogAltitude * 10.0;
-        }
-        
-        // if(scene.fog) {
-        //     scene.fog.far += (dynamicFar - scene.fog.far) * dt * 2.0;
-        //     scene.fog.near += (dynamicNear - scene.fog.near) * dt * 2.0;
-        // }
-        
+        // Static fog to gently mask the 3000 camera clipping plane in all time phases
         // Pin background elements to player (Removed super clouds)
         
         ambientLight.color.lerp(new THREE.Color(target.amb), dt * 2);
