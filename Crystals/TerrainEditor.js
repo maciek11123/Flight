@@ -33,7 +33,7 @@ export function initTerrainEditor(scene, camera, renderer, terrainMesh) {
     uiContainer.style.color = 'white';
     uiContainer.style.fontFamily = 'sans-serif';
     uiContainer.style.zIndex = '1000';
-    uiContainer.style.display = 'flex';
+    uiContainer.style.display = 'none';
     uiContainer.style.flexDirection = 'column';
     uiContainer.style.gap = '10px';
     document.body.appendChild(uiContainer);
@@ -133,10 +133,10 @@ export function initTerrainEditor(scene, camera, renderer, terrainMesh) {
     if (settingsControls) {
         const btnToggleEditor = document.createElement('button');
         btnToggleEditor.id = 'editor-toggle';
-        btnToggleEditor.innerText = 'Hide Editor';
+        btnToggleEditor.innerText = 'Show Editor';
         settingsControls.appendChild(btnToggleEditor);
 
-        let isEditorHidden = false;
+        let isEditorHidden = true;
         btnToggleEditor.addEventListener('click', () => {
             isEditorHidden = !isEditorHidden;
             uiContainer.style.display = isEditorHidden ? 'none' : 'flex';
