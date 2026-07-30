@@ -343,6 +343,38 @@ export function initTerrainEditor(scene, camera, renderer, terrainMesh) {
     contextBtnRow2.appendChild(btnClone);
     contextBtnRow2.appendChild(btnDelete);
 
+    // --- Teleport Button ---
+    const teleportRow = document.createElement('div');
+    teleportRow.style.cssText = 'display:flex;gap:4px;margin-top:6px;';
+    const btnTeleportCapy = makeBtn('Teleport to Capybara');
+    btnTeleportCapy.style.flex = '1';
+    btnTeleportCapy.addEventListener('click', () => {
+        const es = window.editorState;
+        if (!es || !es.playerGrp || !window.getMeshHeight) return;
+        const startX = es.playerGrp.position.x;
+        const startZ = es.playerGrp.position.z;
+        for (let attempt = 0; attempt < 50; attempt++) {
+            const angle = Math.random() * Math.PI * 2;
+            const dist = 200 + Math.random() * 800;
+            const tx = startX + Math.cos(angle) * dist;
+            const tz = startZ + Math.sin(angle) * dist;
+            const h = window.getMeshHeight(tx, tz);
+            const slope = Math.abs(window.getMeshHeight(tx + 2, tz) - h) + Math.abs(window.getMeshHeight(tx, tz + 2) - h);
+            if (h > 5 && h < 20 && slope < 3) {
+                es.playerGrp.position.set(tx, h + 5, tz);
+                if (es.editorControls) {
+                    es.editorControls.target.set(tx, h + 5, tz);
+                    camera.position.set(tx + 30, h + 25, tz + 30);
+                    es.editorControls.update();
+                }
+                return;
+            }
+        }
+        alert('No flat land found nearby — try again');
+    });
+    teleportRow.appendChild(btnTeleportCapy);
+    uiContainer.appendChild(teleportRow);
+
     // --- Keyboard Shortcuts Info ---
     const shortcutsEl = document.createElement('div');
     shortcutsEl.style.cssText = 'font-size:10px;color:#666;line-height:1.6;margin-top:4px;';

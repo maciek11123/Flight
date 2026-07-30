@@ -202,6 +202,7 @@ console.error = function(...args) {
     import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
     import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
     import { KTX2Loader } from 'three/addons/loaders/KTX2Loader.js';
+    import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
     import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
     import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
     import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
@@ -637,6 +638,7 @@ console.error = function(...args) {
         const h1 = h01 * (1 - tx) + h11 * tx;
         return h0 * (1 - tz) + h1 * tz;
     }
+    window.getMeshHeight = getMeshHeight;
     function updateTerrainGeometry(playerX, playerZ) {
         const vertexSpacing = 4000 / 256; // 15.625
         const gridX = Math.floor(playerX / vertexSpacing) * vertexSpacing;
@@ -2099,6 +2101,9 @@ console.error = function(...args) {
     gltfLoader.setKTX2Loader(ktx2Loader);
     
     // Initialize MeshoptDecoder for compressed geometries (like the Whale model)
+    const dracoLoader = new DRACOLoader();
+    dracoLoader.setDecoderPath('https://cdn.jsdelivr.net/npm/three@0.185.0/examples/jsm/libs/draco/');
+    gltfLoader.setDRACOLoader(dracoLoader);
     gltfLoader.setMeshoptDecoder(MeshoptDecoder);
 
     gltfLoader.load(
@@ -2195,6 +2200,82 @@ console.error = function(...args) {
 
 
     
+    // ==========================================
+    // 7b. CAPYBARA SPAWNING SYSTEM
+    // ==========================================
+    const capybaraSpawns = [];
+    const CAPYBARA_COUNT = 3;
+    const CAPYBARA_SPAWN_RADIUS = 300;
+    const CAPYBARA_DESPAWN_RADIUS = 500;
+    let capybaraTemplate = null;
+    let capybaraMixer = [];
+
+    gltfLoader.load('models/capybara_bath.glb', (gltf) => {
+        capybaraTemplate = gltf.scene;
+        capybaraTemplate.traverse((child) => {
+            if (child.isMesh) {
+                child.castShadow = true;
+                child.receiveShadow = true;
+            }
+        });
+
+        for (let i = 0; i < CAPYBARA_COUNT; i++) {
+            const angle = (i / CAPYBARA_COUNT) * Math.PI * 2;
+            const r = 80 + Math.random() * 120;
+            const spawnOffset = new THREE.Vector3(Math.cos(angle) * r, 0, Math.sin(angle) * r);
+
+            const capy = capybaraTemplate.clone();
+            capy.scale.set(2, 2, 2);
+            capy.rotation.y = Math.random() * Math.PI * 2;
+            capy.visible = false;
+            scene.add(capy);
+
+            let mixer = null;
+            if (gltf.animations && gltf.animations.length > 0) {
+                mixer = new THREE.AnimationMixer(capy);
+                const action = mixer.clipAction(gltf.animations[0]);
+                action.play();
+            }
+
+            capybaraSpawns.push({
+                mesh: capy,
+                offset: spawnOffset,
+                placed: false,
+                mixer: mixer
+            });
+        }
+    }, undefined, (err) => console.warn('Capybara model not available:', err.message));
+
+    function updateCapybaras(playerPos, dt) {
+        capybaraSpawns.forEach(capy => {
+            if (!capy.placed) {
+                const tx = playerPos.x + capy.offset.x;
+                const tz = playerPos.z + capy.offset.z;
+                const groundY = getMeshHeight(tx, tz);
+                const slope = Math.abs(getMeshHeight(tx + 2, tz) - groundY) + Math.abs(getMeshHeight(tx, tz + 2) - groundY);
+
+                if (groundY > 3 && groundY < 20 && slope < 3) {
+                    capy.mesh.position.set(tx, groundY, tz);
+                    capy.mesh.visible = true;
+                    capy.placed = true;
+                }
+            } else {
+                const dist = Math.hypot(
+                    playerPos.x - capy.mesh.position.x,
+                    playerPos.z - capy.mesh.position.z
+                );
+                if (dist > CAPYBARA_DESPAWN_RADIUS) {
+                    capy.placed = false;
+                    capy.mesh.visible = false;
+                }
+            }
+
+            if (capy.mixer && capy.mesh.visible) {
+                capy.mixer.update(dt);
+            }
+        });
+    }
+
     // ==========================================
     // 8. INPUTS (Keyboard & Touch)
     // ==========================================
@@ -2957,6 +3038,7 @@ console.error = function(...args) {
             if (window.editorState.editorControls) {
                 window.editorState.editorControls.update();
             }
+            updateCapybaras(playerGrp.position, dt);
             composer.render();
             return;
         }
@@ -3150,6 +3232,8 @@ console.error = function(...args) {
                 w.mat.userData.shader.uniforms.uTime.value = time * 0.5 + w.phase;
             }
         });
+
+        updateCapybaras(playerGrp.position, dt);
 
         composer.render();
     }
