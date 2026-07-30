@@ -2942,12 +2942,11 @@ console.error = function(...args) {
         scene.background.lerp(new THREE.Color(target.bg), dt * 2);
         scene.fog.color.lerp(new THREE.Color(target.fog), dt * 2);
         
-        // Distance fog — must hide terrain edges at ±2000 units from center
+        // Distance fog — pushed far back
         const fogAltitude = Math.max(0, playerGrp.position.y);
         
-        // Gentle ground fog that hides the horizon edge but keeps foreground clear
-        const dynamicFar = 1400 + fogAltitude * 15.0;
-        const dynamicNear = 100 + fogAltitude * 5.0;
+        const dynamicFar = 5000 + fogAltitude * 20.0;
+        const dynamicNear = 2000 + fogAltitude * 10.0;
         
         scene.fog.far += (dynamicFar - scene.fog.far) * dt * 2.0;
         scene.fog.near += (dynamicNear - scene.fog.near) * dt * 2.0;
