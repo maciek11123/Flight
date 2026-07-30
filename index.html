@@ -2208,12 +2208,62 @@ console.error = function(...args) {
     const CAPYBARA_DESPAWN_RADIUS = 600;
     let capybaraTemplate = null;
 
+    const steamTexture = (() => {
+        const c = document.createElement('canvas');
+        c.width = 64; c.height = 64;
+        const ctx = c.getContext('2d');
+        const g = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
+        g.addColorStop(0, 'rgba(255,255,255,0.6)');
+        g.addColorStop(0.5, 'rgba(255,255,255,0.2)');
+        g.addColorStop(1, 'rgba(255,255,255,0)');
+        ctx.fillStyle = g;
+        ctx.fillRect(0, 0, 64, 64);
+        const tex = new THREE.CanvasTexture(c);
+        return tex;
+    })();
+
+    function createSteamParticles() {
+        const count = 12;
+        const geo = new THREE.BufferGeometry();
+        const positions = new Float32Array(count * 3);
+        const sizes = new Float32Array(count);
+        const lifetimes = new Float32Array(count);
+        for (let i = 0; i < count; i++) {
+            positions[i * 3] = (Math.random() - 0.5) * 3;
+            positions[i * 3 + 1] = Math.random() * 4;
+            positions[i * 3 + 2] = (Math.random() - 0.5) * 3;
+            sizes[i] = 2 + Math.random() * 3;
+            lifetimes[i] = Math.random();
+        }
+        geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        geo.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+        geo.setAttribute('lifetime', new THREE.BufferAttribute(lifetimes, 1));
+
+        const mat = new THREE.PointsMaterial({
+            map: steamTexture, size: 4, transparent: true, opacity: 0.25,
+            depthWrite: false, blending: THREE.AdditiveBlending, sizeAttenuation: true,
+            color: 0xffffff
+        });
+        const points = new THREE.Points(geo, mat);
+        points.userData.lifetimes = lifetimes;
+        return points;
+    }
+
     gltfLoader.load('models/capybara_bath.glb', (gltf) => {
         capybaraTemplate = gltf.scene;
         capybaraTemplate.traverse((child) => {
             if (child.isMesh) {
                 child.castShadow = true;
                 child.receiveShadow = true;
+                if (child.material) {
+                    child.material = child.material.clone();
+                    child.material.emissive = new THREE.Color(0x332200);
+                    child.material.emissiveIntensity = 0.3;
+                    const baseColor = child.material.color;
+                    baseColor.r = Math.min(1, baseColor.r * 1.3);
+                    baseColor.g = Math.min(1, baseColor.g * 1.3);
+                    baseColor.b = Math.min(1, baseColor.b * 1.3);
+                }
             }
         });
 
@@ -2223,8 +2273,13 @@ console.error = function(...args) {
             capy.visible = false;
             scene.add(capy);
 
+            const steam = createSteamParticles();
+            capy.add(steam);
+            steam.position.set(0, 0.5, 0);
+
             capybaraSpawns.push({
                 mesh: capy,
+                steam: steam,
                 placed: false
             });
         }
@@ -2273,6 +2328,22 @@ console.error = function(...args) {
                     capy.placed = false;
                     capy.mesh.visible = false;
                 }
+            }
+            if (capy.steam && capy.mesh.visible) {
+                const pos = capy.steam.geometry.attributes.position;
+                const lt = capy.steam.userData.lifetimes;
+                for (let i = 0; i < lt.length; i++) {
+                    lt[i] += dt * 0.4;
+                    if (lt[i] > 1) {
+                        lt[i] = 0;
+                        pos.array[i * 3] = (Math.random() - 0.5) * 3;
+                        pos.array[i * 3 + 1] = 0;
+                        pos.array[i * 3 + 2] = (Math.random() - 0.5) * 3;
+                    }
+                    pos.array[i * 3 + 1] += dt * 3;
+                    pos.array[i * 3] += (Math.random() - 0.5) * dt * 0.5;
+                }
+                pos.needsUpdate = true;
             }
         });
     }
