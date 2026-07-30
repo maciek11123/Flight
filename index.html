@@ -2911,8 +2911,13 @@ console.error = function(...args) {
             scene.fog.color.lerp(new THREE.Color(target.fog), dt * 2);
         }
         
-        // Static fog to gently mask the 3000 camera clipping plane in all time phases
-        // Pin background elements to player (Removed super clouds)
+        // Sun Position Shift
+        const sunTargets = [
+            new THREE.Vector3(0, 500, -20000),       // Dusk: Low on horizon
+            new THREE.Vector3(0, 10000, 15000),      // Twilight (Moon): High and behind
+            new THREE.Vector3(0, 20000, -5000)       // Day: High in the sky
+        ];
+        staticSun.position.lerp(sunTargets[timePhase], dt * 0.5);
         
         ambientLight.color.lerp(new THREE.Color(target.amb), dt * 2);
         ambientLight.intensity += (target.ambI - ambientLight.intensity) * dt * 2;
