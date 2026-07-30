@@ -209,6 +209,7 @@ console.error = function(...args) {
     import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
     import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
     import { Lensflare, LensflareElement } from 'three/addons/objects/Lensflare.js';
+    import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 
 
     let isWindOn = false;
@@ -2204,98 +2205,66 @@ console.error = function(...args) {
     // 7b. CAPYBARA SPAWNING SYSTEM
     // ==========================================
     const capybaraSpawns = [];
-    const CAPYBARA_COUNT = 3;
-    const CAPYBARA_DESPAWN_RADIUS = 600;
+    const CAPYBARA_COUNT = 25;
+    const CAPYBARA_DESPAWN_RADIUS = 700;
+    const CAPYBARA_ANIM_RADIUS = 300;
     let capybaraTemplate = null;
+    let capybaraAnimations = [];
+    let capyFlyTarget = null;
 
-    const steamTexture = (() => {
-        const c = document.createElement('canvas');
-        c.width = 64; c.height = 64;
-        const ctx = c.getContext('2d');
-        const g = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
-        g.addColorStop(0, 'rgba(255,255,255,0.6)');
-        g.addColorStop(0.5, 'rgba(255,255,255,0.2)');
-        g.addColorStop(1, 'rgba(255,255,255,0)');
-        ctx.fillStyle = g;
-        ctx.fillRect(0, 0, 64, 64);
-        const tex = new THREE.CanvasTexture(c);
-        return tex;
-    })();
-
-    function createSteamParticles() {
-        const count = 12;
-        const geo = new THREE.BufferGeometry();
-        const positions = new Float32Array(count * 3);
-        const sizes = new Float32Array(count);
-        const lifetimes = new Float32Array(count);
-        for (let i = 0; i < count; i++) {
-            positions[i * 3] = (Math.random() - 0.5) * 3;
-            positions[i * 3 + 1] = Math.random() * 4;
-            positions[i * 3 + 2] = (Math.random() - 0.5) * 3;
-            sizes[i] = 2 + Math.random() * 3;
-            lifetimes[i] = Math.random();
-        }
-        geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-        geo.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
-        geo.setAttribute('lifetime', new THREE.BufferAttribute(lifetimes, 1));
-
-        const mat = new THREE.PointsMaterial({
-            map: steamTexture, size: 4, transparent: true, opacity: 0.25,
-            depthWrite: false, blending: THREE.AdditiveBlending, sizeAttenuation: true,
-            color: 0xffffff
-        });
-        const points = new THREE.Points(geo, mat);
-        points.userData.lifetimes = lifetimes;
-        return points;
-    }
-
-    gltfLoader.load('models/capybara_bath.glb', (gltf) => {
+    gltfLoader.load('models/capybara_animated.glb', (gltf) => {
         capybaraTemplate = gltf.scene;
+        capybaraAnimations = gltf.animations;
         capybaraTemplate.traverse((child) => {
             if (child.isMesh) {
                 child.castShadow = true;
                 child.receiveShadow = true;
-                if (child.material) {
-                    child.material.emissive = new THREE.Color(0x443311);
-                    child.material.emissiveIntensity = 0.4;
-                }
             }
         });
 
         for (let i = 0; i < CAPYBARA_COUNT; i++) {
-            const capy = capybaraTemplate.clone();
-            capy.scale.set(2, 2, 2);
+            const capy = SkeletonUtils.clone(capybaraTemplate);
+            const s = 12 + Math.random() * 8;
+            capy.scale.set(s, s, s);
             capy.visible = false;
             scene.add(capy);
 
-            const steam = createSteamParticles();
-            capy.add(steam);
-            steam.position.set(0, 0.5, 0);
+            const mixer = new THREE.AnimationMixer(capy);
+            const actions = {};
+            for (const clip of capybaraAnimations) {
+                const shortName = clip.name.split('|').pop();
+                actions[shortName] = mixer.clipAction(clip);
+                actions[shortName].setLoop(THREE.LoopRepeat);
+            }
+            if (actions['idle']) {
+                actions['idle'].play();
+                mixer.update(Math.random() * 3);
+            }
 
             capybaraSpawns.push({
-                mesh: capy,
-                steam: steam,
-                placed: false
+                mesh: capy, mixer, actions,
+                placed: false, state: 'idle',
+                stateTimer: 2 + Math.random() * 8,
+                walkTarget: null, groupId: -1
             });
         }
     }, undefined, (err) => console.warn('Capybara model not available:', err.message));
 
-    function findFlatSpot(cx, cz, minDist, maxDist, avoid) {
-        for (let attempt = 0; attempt < 40; attempt++) {
+    function findFlatSpot(cx, cz, minDist, maxDist, minSep) {
+        for (let attempt = 0; attempt < 50; attempt++) {
             const angle = Math.random() * Math.PI * 2;
             const r = minDist + Math.random() * (maxDist - minDist);
             const tx = cx + Math.cos(angle) * r;
             const tz = cz + Math.sin(angle) * r;
             const groundY = getMeshHeight(tx, tz);
-            if (groundY < 5 || groundY > 15) continue;
+            if (groundY < 4 || groundY > 18) continue;
             const slopeX = Math.abs(getMeshHeight(tx + 3, tz) - groundY);
             const slopeZ = Math.abs(getMeshHeight(tx, tz + 3) - groundY);
-            if (slopeX > 0.8 || slopeZ > 0.8) continue;
+            if (slopeX > 1.0 || slopeZ > 1.0) continue;
             let tooClose = false;
-            for (const other of avoid) {
-                if (other.placed && Math.hypot(tx - other.mesh.position.x, tz - other.mesh.position.z) < 60) {
-                    tooClose = true;
-                    break;
+            for (const other of capybaraSpawns) {
+                if (other.placed && Math.hypot(tx - other.mesh.position.x, tz - other.mesh.position.z) < minSep) {
+                    tooClose = true; break;
                 }
             }
             if (tooClose) continue;
@@ -2304,15 +2273,63 @@ console.error = function(...args) {
         return null;
     }
 
+    function switchCapyAction(capy, newState) {
+        const oldAction = capy.actions[capy.state];
+        const newAction = capy.actions[newState];
+        if (!newAction) return;
+        if (oldAction && oldAction !== newAction) oldAction.fadeOut(0.4);
+        newAction.reset().fadeIn(0.4).play();
+        capy.state = newState;
+    }
+
+    const capyRaycaster = new THREE.Raycaster();
+    const capyPointer = new THREE.Vector2();
+
+    renderer.domElement.addEventListener('pointerdown', (e) => {
+        if (window.editorState && window.editorState.isEditorMode) return;
+        capyPointer.x = (e.clientX / window.innerWidth) * 2 - 1;
+        capyPointer.y = -(e.clientY / window.innerHeight) * 2 + 1;
+        capyRaycaster.setFromCamera(capyPointer, camera);
+        const capyMeshes = capybaraSpawns.filter(c => c.placed).map(c => c.mesh);
+        const allChildren = [];
+        capyMeshes.forEach(m => m.traverse(child => { if (child.isMesh) allChildren.push(child); }));
+        const hits = capyRaycaster.intersectObjects(allChildren, false);
+        if (hits.length > 0) {
+            let hitObj = hits[0].object;
+            while (hitObj.parent && !capyMeshes.includes(hitObj)) hitObj = hitObj.parent;
+            const target = capybaraSpawns.find(c => c.mesh === hitObj);
+            if (target) {
+                capyFlyTarget = target;
+            }
+        }
+    });
+
     function updateCapybaras(playerPos, dt) {
         capybaraSpawns.forEach(capy => {
             if (!capy.placed) {
-                const spot = findFlatSpot(playerPos.x, playerPos.z, 100, 350, capybaraSpawns);
+                const isGrouped = Math.random() < 0.7;
+                let spot;
+                if (isGrouped) {
+                    const nearby = capybaraSpawns.find(c => c.placed &&
+                        Math.hypot(playerPos.x - c.mesh.position.x, playerPos.z - c.mesh.position.z) < 400);
+                    if (nearby) {
+                        spot = findFlatSpot(nearby.mesh.position.x, nearby.mesh.position.z, 8, 30, 6);
+                    }
+                }
+                if (!spot) {
+                    spot = findFlatSpot(playerPos.x, playerPos.z, 80, 400, 6);
+                }
                 if (spot) {
                     capy.mesh.position.set(spot.x, spot.y, spot.z);
                     capy.mesh.rotation.y = Math.random() * Math.PI * 2;
                     capy.mesh.visible = true;
                     capy.placed = true;
+                    capy.state = 'idle';
+                    capy.stateTimer = 3 + Math.random() * 5;
+                    if (capy.actions['idle']) {
+                        Object.values(capy.actions).forEach(a => a.stop());
+                        capy.actions['idle'].reset().play();
+                    }
                 }
             } else {
                 const dist = Math.hypot(
@@ -2322,24 +2339,57 @@ console.error = function(...args) {
                 if (dist > CAPYBARA_DESPAWN_RADIUS) {
                     capy.placed = false;
                     capy.mesh.visible = false;
+                    if (capyFlyTarget === capy) capyFlyTarget = null;
+                    return;
                 }
-            }
-            if (capy.steam && capy.mesh.visible) {
-                const pos = capy.steam.geometry.attributes.position;
-                const lt = capy.steam.userData.lifetimes;
-                for (let i = 0; i < lt.length; i++) {
-                    lt[i] += dt * 0.4;
-                    if (lt[i] > 1) {
-                        lt[i] = 0;
-                        pos.array[i * 3] = (Math.random() - 0.5) * 3;
-                        pos.array[i * 3 + 1] = 0;
-                        pos.array[i * 3 + 2] = (Math.random() - 0.5) * 3;
+
+                capy.stateTimer -= dt;
+                if (capy.stateTimer <= 0) {
+                    if (capy.state === 'idle') {
+                        const walkAngle = Math.random() * Math.PI * 2;
+                        const walkDist = 5 + Math.random() * 12;
+                        capy.walkTarget = new THREE.Vector3(
+                            capy.mesh.position.x + Math.cos(walkAngle) * walkDist, 0,
+                            capy.mesh.position.z + Math.sin(walkAngle) * walkDist
+                        );
+                        switchCapyAction(capy, 'walk');
+                        capy.stateTimer = 3 + Math.random() * 4;
+                    } else {
+                        capy.walkTarget = null;
+                        switchCapyAction(capy, 'idle');
+                        capy.stateTimer = 4 + Math.random() * 6;
                     }
-                    pos.array[i * 3 + 1] += dt * 3;
-                    pos.array[i * 3] += (Math.random() - 0.5) * dt * 0.5;
                 }
-                pos.needsUpdate = true;
+
+                if (capy.state === 'walk' && capy.walkTarget) {
+                    const dx = capy.walkTarget.x - capy.mesh.position.x;
+                    const dz = capy.walkTarget.z - capy.mesh.position.z;
+                    const distToTarget = Math.sqrt(dx * dx + dz * dz);
+                    if (distToTarget > 0.5) {
+                        const speed = 3.0;
+                        const nx = capy.mesh.position.x + (dx / distToTarget) * speed * dt;
+                        const nz = capy.mesh.position.z + (dz / distToTarget) * speed * dt;
+                        const groundY = getMeshHeight(nx, nz);
+                        if (groundY > 4 && groundY < 18) {
+                            capy.mesh.position.set(nx, groundY, nz);
+                            capy.mesh.rotation.y = Math.atan2(dx, dz);
+                        } else {
+                            capy.walkTarget = null;
+                            switchCapyAction(capy, 'idle');
+                            capy.stateTimer = 3 + Math.random() * 5;
+                        }
+                    } else {
+                        capy.walkTarget = null;
+                        switchCapyAction(capy, 'idle');
+                        capy.stateTimer = 4 + Math.random() * 6;
+                    }
+                }
+
+                if (dist < CAPYBARA_ANIM_RADIUS) {
+                    capy.mixer.update(dt);
+                }
             }
+
         });
     }
 
@@ -2989,8 +3039,32 @@ console.error = function(...args) {
         let activeSpeed = globalVelocity; 
         character.position.add(movementDirection.multiplyScalar(activeSpeed * delta));
 
+        if (capyFlyTarget && capyFlyTarget.placed) {
+            const cp = capyFlyTarget.mesh.position;
+            const orbitRadius = 25;
+            const orbitHeight = cp.y + 15;
+            const toCapy = new THREE.Vector3(cp.x - character.position.x, 0, cp.z - character.position.z);
+            const distToCapy = toCapy.length();
+            if (distToCapy > orbitRadius) {
+                const flySpeed = Math.min(activeSpeed * 0.3, 15);
+                toCapy.normalize().multiplyScalar(flySpeed * delta);
+                character.position.x += toCapy.x;
+                character.position.z += toCapy.z;
+                character.position.y += (orbitHeight - character.position.y) * 2 * delta;
+            } else {
+                const orbitAngle = Math.atan2(character.position.z - cp.z, character.position.x - cp.x);
+                const orbitSpeed = 0.3;
+                const newAngle = orbitAngle + orbitSpeed * delta;
+                character.position.x = cp.x + Math.cos(newAngle) * orbitRadius;
+                character.position.z = cp.z + Math.sin(newAngle) * orbitRadius;
+                character.position.y += (orbitHeight - character.position.y) * 2 * delta;
+                character.lookAt(cp.x, cp.y + 5, cp.z);
+            }
+            if (inputState.boost || inputState.brake) capyFlyTarget = null;
+        }
+
         // Anti-Clipping Floor Constraint (Metric calculation)
-        const minimumFlightHeight = 18; 
+        const minimumFlightHeight = 18;
         if (character.position.y < minimumFlightHeight) {
             character.position.y = minimumFlightHeight;
         }
