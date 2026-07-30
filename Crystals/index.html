@@ -2263,6 +2263,10 @@ console.error = function(...args) {
 
     document.getElementById('hide-ui-toggle').addEventListener('click', toggleUI);
 
+    if (isMobile) {
+        toggleUI();
+    }
+
     const joyBase = document.getElementById('joystick-base');
     const joyKnob = document.getElementById('joystick-knob');
     let activeTouchId = null;
