@@ -100,7 +100,7 @@ console.error = function(...args) {
   <div id="settings-controls">
     <button id="fullscreen-toggle">⛶ Fullscreen</button>
     <button id="hide-ui-toggle">Hide UI</button>
-    <button id="time-toggle">Time of day</button>
+    <button id="time-toggle">Time of day: Dusk</button>
 
     <div id="music-menu-container" style="display: flex; flex-direction: column; gap: 5px;">
         <button id="music-toggle">▶ Music</button>
@@ -3157,7 +3157,14 @@ console.error = function(...args) {
     if (timeToggleBtn) {
         timeToggleBtn.addEventListener('click', () => {
             timePhase = (timePhase + 1) % 3;
+            if (timePhase === 0) timeToggleBtn.innerText = 'Time of day: Dusk';
+            else if (timePhase === 1) timeToggleBtn.innerText = 'Time of day: Twilight';
+            else timeToggleBtn.innerText = 'Time of day: Day';
         });
+        // Set initial text based on initial phase
+        if (timePhase === 0) timeToggleBtn.innerText = 'Time of day: Dusk';
+        else if (timePhase === 1) timeToggleBtn.innerText = 'Time of day: Twilight';
+        else timeToggleBtn.innerText = 'Time of day: Day';
     }
 
 
