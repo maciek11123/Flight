@@ -305,7 +305,7 @@ console.error = function(...args) {
     const container = document.getElementById('app');
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0xc9e8ff);
-    scene.fog = new THREE.Fog(0xc9e8ff, 8000, 18000);
+    // scene.fog = new THREE.Fog(0xc9e8ff, 8000, 18000); // FOG DISABLED
 
 
 
@@ -2894,10 +2894,10 @@ console.error = function(...args) {
             dynamicNear = 3500 + fogAltitude * 10.0;
         }
         
-        if(scene.fog) {
-            scene.fog.far += (dynamicFar - scene.fog.far) * dt * 2.0;
-            scene.fog.near += (dynamicNear - scene.fog.near) * dt * 2.0;
-        }
+        // if(scene.fog) {
+        //     scene.fog.far += (dynamicFar - scene.fog.far) * dt * 2.0;
+        //     scene.fog.near += (dynamicNear - scene.fog.near) * dt * 2.0;
+        // }
         
         // Pin background elements to player (Removed super clouds)
         
