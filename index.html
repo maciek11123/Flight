@@ -296,8 +296,8 @@ console.error = function(...args) {
 
     const container = document.getElementById('app');
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0xc9e8ff);
-    scene.fog = new THREE.Fog(0xc9e8ff, 1500, 2000);
+    scene.background = new THREE.Color(0x8cbce6);
+    scene.fog = new THREE.Fog(0x8cbce6, 100, 1800);
 
 
 
@@ -322,12 +322,12 @@ console.error = function(...args) {
     // ==========================================
     // 2. LIGHTING
     // ==========================================
-    const ambientLight = new THREE.AmbientLight(0xfff5e6, 0.7);
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
     scene.add(ambientLight);
 
     loadAssets();
 
-    const dirLight = new THREE.DirectionalLight(0xfff0d0, 1.6);
+    const dirLight = new THREE.DirectionalLight(0xfffaeb, 1.4);
     dirLight.position.set(150, 200, 50);
     dirLight.castShadow = true;
     dirLight.shadow.camera.left = -120;
@@ -345,12 +345,12 @@ console.error = function(...args) {
     const textureFlare3 = flareTextureLoader.load('https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/lensflare/lensflare3.png');
     
     const staticSun = new THREE.Group();
-    staticSun.position.set(0, 500, -20000); // Massive distance so Kiki can fly towards it
+    staticSun.position.set(0, 1500, -20000);
     scene.add(staticSun);
 
     const lensflare = new Lensflare();
-    const mainFlareElement = new LensflareElement(textureFlare0, 500, 0, dirLight.color);
-    lensflare.addElement(mainFlareElement); // Main sun glare
+    const mainFlareElement = new LensflareElement(textureFlare0, 1600, 0, dirLight.color);
+    lensflare.addElement(mainFlareElement);
     lensflare.addElement(new LensflareElement(textureFlare3, 60, 0.6));
     lensflare.addElement(new LensflareElement(textureFlare3, 70, 0.7));
     lensflare.addElement(new LensflareElement(textureFlare3, 120, 0.9));
@@ -358,8 +358,8 @@ console.error = function(...args) {
     staticSun.add(lensflare);
 
     // Physical Sun Sphere
-    const sunGeo = new THREE.SphereGeometry(80, 32, 32);
-    const sunMat = new THREE.MeshBasicMaterial({ color: 0xffffff, fog: false }); // fog: false makes it glow through atmosphere
+    const sunGeo = new THREE.SphereGeometry(600, 32, 32);
+    const sunMat = new THREE.MeshBasicMaterial({ color: 0xffffff, fog: false });
     const sunMesh = new THREE.Mesh(sunGeo, sunMat);
     staticSun.add(sunMesh);
 
@@ -1034,45 +1034,34 @@ console.error = function(...args) {
 
     const waterGeo = new THREE.PlaneGeometry(5000, 5000);
     waterGeo.rotateX(-Math.PI / 2);
-    
+
     const waterUniforms = {
-        uTime: { value: 0 },
-        uSunPos: { value: new THREE.Vector3(0, 500, -2500) },
-        uSunColor: { value: new THREE.Color(0xffddaa) },
-        uSunIntensity: { value: 1.0 }
+        uTime: { value: 0 }
     };
-    
+
     const waterMat = new THREE.MeshStandardMaterial({
         color: 0x4da9e8,
         transparent: false,
         opacity: 1.0,
         roughness: 0.1,
-        metalness: 0.1,
-        emissive: 0x112244,
-        emissiveIntensity: 0.1
+        metalness: 0.2
     });
-    
+
     waterMat.onBeforeCompile = (shader) => {
         shader.uniforms.uTime = waterUniforms.uTime;
-        shader.uniforms.uSunPos = waterUniforms.uSunPos;
-        shader.uniforms.uSunColor = waterUniforms.uSunColor;
-        shader.uniforms.uSunIntensity = waterUniforms.uSunIntensity;
-        
+
         shader.vertexShader = `
             varying vec3 vWorldPos;
         ` + shader.vertexShader;
-        
+
         shader.vertexShader = shader.vertexShader.replace(
             `#include <worldpos_vertex>`,
             `#include <worldpos_vertex>
              vWorldPos = (modelMatrix * vec4(position, 1.0)).xyz;`
         );
-        
+
         shader.fragmentShader = `
             uniform float uTime;
-            uniform vec3 uSunPos;
-            uniform vec3 uSunColor;
-            uniform float uSunIntensity;
             varying vec3 vWorldPos;
 
             vec3 permute(vec3 x) { return mod(((x*34.0)+1.0)*x, 289.0); }
@@ -1092,66 +1081,24 @@ console.error = function(...args) {
                 return 130.0 * dot(m, g);
             }
         ` + shader.fragmentShader;
-        
+
         shader.fragmentShader = shader.fragmentShader.replace(
             `#include <color_fragment>`,
             `#include <color_fragment>
-             vec2 uv = vWorldPos.xz * 0.08;
-             float n1 = 1.0 - abs(snoise(uv + vec2(uTime * 0.08, uTime * 0.04)));
-             float n2 = 1.0 - abs(snoise(uv * 1.3 - vec2(uTime * 0.12, -uTime * 0.06)));
-             float caustics = pow(n1, 4.0) + pow(n2, 4.0) * 0.4;
-
-             float sparkle = snoise(vWorldPos.xz * 0.5 + vec2(uTime * 0.3, uTime * 0.2));
-             sparkle = pow(max(sparkle, 0.0), 8.0) * 1.5;
+             vec2 uv = vWorldPos.xz * 0.1;
+             float n1 = 1.0 - abs(snoise(uv + vec2(uTime * 0.1, uTime * 0.05)));
+             float n2 = 1.0 - abs(snoise(uv * 1.5 - vec2(uTime * 0.15, -uTime * 0.05)));
+             float caustics = pow(n1, 6.0) + pow(n2, 6.0) * 0.5;
 
              float simpleTerrainH = snoise(vWorldPos.xz * 0.003) * 15.0;
              float deepWater = smoothstep(-0.5, -4.0, simpleTerrainH);
 
              caustics = clamp(caustics, 0.0, 1.0) * deepWater;
-
-             vec3 shallowColor = vec3(0.5, 0.85, 1.0);
-             vec3 deepColor = vec3(0.25, 0.45, 0.85);
-             vec3 sparkleColor = vec3(1.0, 0.95, 0.85);
+             diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.9, 0.95, 1.0), caustics * 0.5);
 
              float dist = length(vWorldPos.xz - cameraPosition.xz);
-             float depthFade = smoothstep(50.0, 400.0, dist);
-
-             diffuseColor.rgb = mix(shallowColor, deepColor, depthFade * 0.6);
-             diffuseColor.rgb = mix(diffuseColor.rgb, sparkleColor, caustics * 0.35);
-             diffuseColor.rgb += sparkleColor * sparkle * 0.2;
-
-             // Sun reflection on water
-             vec3 sunDir = normalize(uSunPos - vWorldPos);
-             vec3 viewDir = normalize(cameraPosition - vWorldPos);
-
-             // Perturbed water normal for shimmer
-             float waveNx = snoise(vWorldPos.xz * 0.03 + vec2(uTime * 0.05, 0.0)) * 0.15;
-             float waveNz = snoise(vWorldPos.xz * 0.03 + vec2(0.0, uTime * 0.04)) * 0.15;
-             float waveNx2 = snoise(vWorldPos.xz * 0.08 + vec2(uTime * 0.1, uTime * 0.03)) * 0.08;
-             float waveNz2 = snoise(vWorldPos.xz * 0.08 + vec2(uTime * 0.04, uTime * 0.1)) * 0.08;
-             vec3 waterNormal = normalize(vec3(waveNx + waveNx2, 1.0, waveNz + waveNz2));
-             vec3 reflectDir = reflect(-sunDir, waterNormal);
-
-             // Fresnel — stronger reflection at grazing angles
-             float fresnel = pow(1.0 - max(dot(viewDir, vec3(0.0, 1.0, 0.0)), 0.0), 3.0);
-             fresnel = 0.3 + 0.7 * fresnel;
-
-             // Sharp sun disc on water
-             float specHard = pow(max(dot(viewDir, reflectDir), 0.0), 128.0);
-             // Medium sun glow
-             float specMed = pow(max(dot(viewDir, reflectDir), 0.0), 8.0);
-             // Wide sun path (stretches when sun is low on horizon)
-             float specWide = pow(max(dot(viewDir, reflectDir), 0.0), 2.0);
-
-             float sunHeight = max(0.0, sunDir.y);
-             float pathStretch = 1.0 + (1.0 - sunHeight) * 3.0;
-
-             vec3 sunReflection = uSunColor * uSunIntensity * fresnel * (
-                 specHard * 3.0 +
-                 specMed * 0.6 * pathStretch +
-                 specWide * 0.08 * pathStretch
-             );
-             diffuseColor.rgb += sunReflection;
+             float depthFade = smoothstep(50.0, 350.0, dist);
+             diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * 0.2, depthFade);
             `
         );
     };
@@ -2293,7 +2240,7 @@ console.error = function(...args) {
         
         const btnToggleEditor = document.getElementById('editor-toggle');
         if (btnToggleEditor) {
-            btnToggleEditor.style.display = 'none'; // Ensure the button is hidden by default as requested
+            btnToggleEditor.style.display = uiVisible ? '' : 'none';
         }
 
         // Crystal Editor panel
@@ -2914,9 +2861,9 @@ console.error = function(...args) {
 
 
     const envConfigs = [
-        {bg: 0xc9e8ff, fog: 0xc9e8ff, amb: 0xfff5e6, dir: 0xfff0d0, ambI: 1.0, dirI: 2.8, starOp: 0},
-        {bg: 0xffccaa, fog: 0xffccaa, amb: 0xffe8cc, dir: 0xffaa66, ambI: 1.2, dirI: 3.0, starOp: 0.15},
-        {bg: 0x6a5a90, fog: 0x6a5a90, amb: 0xaa99cc, dir: 0xffbbdd, ambI: 0.9, dirI: 2.0, starOp: 1.0},
+        {bg: 0x8cbce6, fog: 0x8cbce6, amb: 0xffffff, dir: 0xfffaeb, ambI: 0.4, dirI: 1.4, starOp: 0},
+        {bg: 0xffccaa, fog: 0xffccaa, amb: 0xffe8cc, dir: 0xffaa66, ambI: 0.6, dirI: 1.6, starOp: 0.15},
+        {bg: 0x6a5a90, fog: 0x6a5a90, amb: 0xaa99cc, dir: 0xffbbdd, ambI: 0.4, dirI: 1.0, starOp: 1.0},
     ];
 
     let lastFpsTime = performance.now();
@@ -2977,35 +2924,6 @@ console.error = function(...args) {
             scene.fog.color.lerp(new THREE.Color(target.fog), dt * 2);
         }
         
-        // Sun Position Shift (Relative to player)
-        // Player flies at y~18-600, water at y=2.4, horizon = sun Y near player Y
-        const sunDist = 2500;
-        const sunOffsets = [
-            new THREE.Vector3(sunDist * 0.15, 30, -sunDist),              // Dusk: just above horizon
-            new THREE.Vector3(-sunDist * 0.2, -30, -sunDist * 0.95),      // Twilight: half below horizon
-            new THREE.Vector3(sunDist * 0.1, sunDist * 0.55, -sunDist * 0.8) // Day: well above horizon
-        ];
-        const sunColors = [
-            new THREE.Color(0xffcc77),  // Dusk: warm amber gold
-            new THREE.Color(0xff6644),  // Twilight: deep orange-red
-            new THREE.Color(0xfffef0)   // Day: bright white-yellow
-        ];
-        const sunGlowSizes = [800, 1100, 400]; // Dusk: big warm glow, Twilight: massive glare, Day: crisp
-
-        const targetSunPos = playerGrp.position.clone().add(sunOffsets[timePhase]);
-        staticSun.position.lerp(targetSunPos, dt * 1.5);
-        sunMesh.material.color.lerp(sunColors[timePhase], dt * 2);
-        mainFlareElement.size += (sunGlowSizes[timePhase] - mainFlareElement.size) * dt * 2;
-        const sunScales = [1.0, 1.4, 0.8]; // Twilight: bigger sun disc for half-hidden effect
-        const targetSunScale = sunScales[timePhase];
-        sunMesh.scale.lerp(new THREE.Vector3(targetSunScale, targetSunScale, targetSunScale), dt * 2);
-
-        // Update water sun reflection uniforms
-        waterUniforms.uSunPos.value.copy(staticSun.position);
-        waterUniforms.uSunColor.value.lerp(sunColors[timePhase], dt * 2);
-        const sunIntensities = [1.5, 2.5, 0.7]; // Dusk: strong, Twilight: intense glare, Day: subtle
-        waterUniforms.uSunIntensity.value += (sunIntensities[timePhase] - waterUniforms.uSunIntensity.value) * dt * 2;
-
         ambientLight.color.lerp(new THREE.Color(target.amb), dt * 2);
         ambientLight.intensity += (target.ambI - ambientLight.intensity) * dt * 2;
         dirLight.color.lerp(new THREE.Color(target.dir), dt * 2);
