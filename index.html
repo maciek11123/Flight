@@ -347,11 +347,11 @@ console.error = function(...args) {
     const textureFlare3 = flareTextureLoader.load('https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/lensflare/lensflare3.png');
     
     const staticSun = new THREE.Group();
-    staticSun.position.set(0, 1500, -20000);
+    staticSun.position.set(0, 800, -2000);
     scene.add(staticSun);
 
     const lensflare = new Lensflare();
-    const mainFlareElement = new LensflareElement(textureFlare0, 1600, 0, dirLight.color);
+    const mainFlareElement = new LensflareElement(textureFlare0, 800, 0, dirLight.color);
     lensflare.addElement(mainFlareElement);
     lensflare.addElement(new LensflareElement(textureFlare3, 60, 0.6));
     lensflare.addElement(new LensflareElement(textureFlare3, 70, 0.7));
@@ -360,7 +360,7 @@ console.error = function(...args) {
     staticSun.add(lensflare);
 
     // Physical Sun Sphere
-    const sunGeo = new THREE.SphereGeometry(600, 32, 32);
+    const sunGeo = new THREE.SphereGeometry(120, 32, 32);
     const sunMat = new THREE.MeshBasicMaterial({ color: 0xffffff, fog: false });
     const sunMesh = new THREE.Mesh(sunGeo, sunMat);
     staticSun.add(sunMesh);
@@ -2313,11 +2313,11 @@ console.error = function(...args) {
                     const nearby = capybaraSpawns.find(c => c.placed &&
                         Math.hypot(playerPos.x - c.mesh.position.x, playerPos.z - c.mesh.position.z) < 400);
                     if (nearby) {
-                        spot = findFlatSpot(nearby.mesh.position.x, nearby.mesh.position.z, 8, 30, 6);
+                        spot = findFlatSpot(nearby.mesh.position.x, nearby.mesh.position.z, 25, 80, 20);
                     }
                 }
                 if (!spot) {
-                    spot = findFlatSpot(playerPos.x, playerPos.z, 80, 400, 6);
+                    spot = findFlatSpot(playerPos.x, playerPos.z, 80, 450, 20);
                 }
                 if (spot) {
                     capy.mesh.position.set(spot.x, spot.y, spot.z);
