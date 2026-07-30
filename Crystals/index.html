@@ -356,7 +356,7 @@ console.error = function(...args) {
     staticSun.add(lensflare);
 
     // Physical Sun Sphere
-    const sunGeo = new THREE.SphereGeometry(600, 32, 32);
+    const sunGeo = new THREE.SphereGeometry(80, 32, 32);
     const sunMat = new THREE.MeshBasicMaterial({ color: 0xffffff, fog: false }); // fog: false makes it glow through atmosphere
     const sunMesh = new THREE.Mesh(sunGeo, sunMat);
     staticSun.add(sunMesh);
@@ -2912,11 +2912,12 @@ console.error = function(...args) {
         }
         
         // Sun Position Shift (Relative to player)
-        // We use relative vectors so the sun doesn't drift as the player flies.
+        // Kept within camera.far (3000) so the actual sun mesh isn't clipped
+        const sunDist = 2800;
         const sunOffsets = [
-            new THREE.Vector3(0, 1000, -20000),      // Dusk: Low on horizon
-            new THREE.Vector3(-10000, 12000, 10000), // Twilight (Moon): High in sky
-            new THREE.Vector3(0, 15000, -5000)       // Day: High in the sky
+            new THREE.Vector3(0, 150, -sunDist),                    // Dusk: Very low on horizon, straight ahead
+            new THREE.Vector3(sunDist * 0.3, sunDist * 0.6, -sunDist * 0.7), // Twilight: High up and slightly right
+            new THREE.Vector3(0, sunDist * 0.5, -sunDist * 0.8)     // Day: High up, straight ahead
         ];
         const targetSunPos = playerGrp.position.clone().add(sunOffsets[timePhase]);
         staticSun.position.lerp(targetSunPos, dt * 1.5);
