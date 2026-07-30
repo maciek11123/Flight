@@ -43,33 +43,15 @@
       box-shadow: 0 4px 12px rgba(0,0,0,0.3);
       backdrop-filter: blur(4px);
     }
-    #boost-btn { background: rgba(59, 130, 246, 0.7); border: 2px solid rgba(96, 165, 250, 0.9); }
-    #brake-btn { background: rgba(239, 68, 68, 0.7); border: 2px solid rgba(248, 113, 113, 0.9); }
+    #boost-btn { background: rgba(255, 255, 255, 0.2); border: 2px solid rgba(255, 255, 255, 0.5); }
+    #brake-btn { background: rgba(255, 255, 255, 0.2); border: 2px solid rgba(255, 255, 255, 0.5); }
 
-    #time-toggle {
-      position: fixed; left: 16px; top: 16px;
-      color: rgba(60, 50, 70, 0.9); background: rgba(255, 255, 255, 0.6);
-      backdrop-filter: blur(6px); padding: 8px 12px;
-      border-radius: 8px; font-size: 13px; cursor: pointer;
-      border: none; z-index: 10; pointer-events: auto; font-weight: bold;
-    }
     #settings-controls {
       position: fixed; right: 16px; top: 16px;
       z-index: 10; pointer-events: auto;
       display: flex; flex-direction: column; gap: 8px; align-items: flex-end;
     }
     #settings-controls button {
-      color: rgba(60, 50, 70, 0.9); background: rgba(255, 255, 255, 0.6);
-      backdrop-filter: blur(6px); padding: 8px 12px;
-      border-radius: 8px; font-size: 13px; cursor: pointer;
-      border: none; font-weight: bold; width: fit-content;
-    }
-    #audio-controls {
-      position: fixed; left: 16px; top: 56px;
-      z-index: 10; pointer-events: auto;
-      display: flex; flex-direction: column; gap: 8px;
-    }
-    #audio-controls button {
       color: rgba(60, 50, 70, 0.9); background: rgba(255, 255, 255, 0.6);
       backdrop-filter: blur(6px); padding: 8px 12px;
       border-radius: 8px; font-size: 13px; cursor: pointer;
@@ -115,19 +97,13 @@ console.error = function(...args) {
 };
 </script>
   <div id="app"></div>
-  <button id="time-toggle">Switch to Dusk</button>
-  <div id="audio-controls">
+  <div id="settings-controls">
+    <button id="time-toggle">Switch to Dusk</button>
     <button id="music-toggle">▶ Music</button>
     <button id="track-toggle" style="display:none">Track: Valley Wind</button>
-  </div>
-  
-  <div id="settings-controls">
     <button id="fullscreen-toggle">⛶ Fullscreen</button>
     <button id="pause-toggle">Pause Flight</button>
-    <button id="wind-toggle">Wind: OFF</button>
     <button id="trails-toggle">Wind Trails: ON</button>
-    <button id="photo-toggle">📷 Photo Mode</button>
-    <button id="zoom-toggle">Zoom Out</button>
     <button id="hide-ui-toggle">Hide UI</button>
     <button id="char-toggle">Switch to Princess</button>
     <button id="crystal-edit-toggle">Edit Crystals</button>
@@ -246,10 +222,7 @@ console.error = function(...args) {
         document.getElementById('pause-toggle').innerText = isFlightPaused ? 'Resume Flight' : 'Pause Flight';
     });
 
-    document.getElementById('wind-toggle').addEventListener('click', () => {
-        isWindOn = !isWindOn;
-        document.getElementById('wind-toggle').innerText = `Wind: ${isWindOn ? 'ON' : 'OFF'}`;
-    });
+
 
     const clickRaycaster = new THREE.Raycaster();
     const clickMouse = new THREE.Vector2();
@@ -261,32 +234,7 @@ console.error = function(...args) {
         document.getElementById('trails-toggle').innerText = `Wind Trails: ${isWindTrailsOn ? 'ON' : 'OFF'}`;
     });
     
-    document.getElementById('photo-toggle').addEventListener('click', () => {
-        isPhotoMode = true;
-        document.getElementById('settings-controls').style.display = 'none';
-        document.getElementById('touch-controls').style.display = 'none';
-        document.getElementById('time-toggle').style.display = 'none';
-        document.getElementById('audio-controls').style.display = 'none';
-        document.getElementById('photo-mode-ui').style.display = 'flex';
-        
-        if (!photoControls) {
-            photoControls = new OrbitControls(camera, renderer.domElement);
-        }
-        photoControls.enabled = true;
-        // set target to player position
-        photoControls.target.copy(playerGrp.position);
-        photoControls.update();
-    });
 
-    document.getElementById('zoom-toggle').addEventListener('click', () => {
-        if (cameraZoomDist < 30.0) {
-            cameraZoomDist = 45.0;
-            document.getElementById('zoom-toggle').innerText = 'Zoom In';
-        } else {
-            cameraZoomDist = 12.0;
-            document.getElementById('zoom-toggle').innerText = 'Zoom Out';
-        }
-    });
 
     window.addEventListener('wheel', (e) => {
         cameraZoomDist += Math.sign(e.deltaY) * 4.0;
@@ -2286,7 +2234,7 @@ console.error = function(...args) {
             const dispFlex = uiVisible ? 'flex' : 'none';
 
             document.getElementById('audio-controls').style.display = dispFlex;
-            document.getElementById('fps-counter').style.display = disp;
+            // document.getElementById('fps-counter').style.display = disp;
             document.getElementById('time-toggle').style.display = disp;
 
             // Terrain Editor panel
@@ -2310,11 +2258,11 @@ console.error = function(...args) {
             document.getElementById('hide-ui-toggle').innerText = uiVisible ? 'Hide UI' : 'Show UI';
             document.getElementById('hide-ui-toggle').style.opacity = uiVisible ? '1' : '0.5';
 
-            // Mobile: hide joystick and boost/brake buttons
-            const touchControls = document.getElementById('touch-controls');
-            if (touchControls) {
-                touchControls.style.display = uiVisible ? '' : 'none';
-            }
+            // Mobile: keep joystick and boost/brake buttons visible
+            // const touchControls = document.getElementById('touch-controls');
+            // if (touchControls) {
+            //     touchControls.style.display = uiVisible ? '' : 'none';
+            // }
 
             // PC controls hint
             const pcHint = document.getElementById('pc-controls-hint');
