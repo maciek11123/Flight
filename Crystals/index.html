@@ -2202,12 +2202,17 @@ console.error = function(...args) {
         if(e.key === 'Shift') keys.shift = true;
         if(e.key === ' ') keys.space = true;
         if(e.key.toLowerCase() === 'h') {
-            uiVisible = !uiVisible;
-            const disp = uiVisible ? 'block' : 'none';
-            const dispFlex = uiVisible ? 'flex' : 'none';
+            toggleUI();
+        }
+    });
 
-            // document.getElementById('fps-counter').style.display = disp;
-            document.getElementById('time-toggle').style.display = disp;
+    function toggleUI() {
+        uiVisible = !uiVisible;
+        const disp = uiVisible ? 'block' : 'none';
+        const dispFlex = uiVisible ? 'flex' : 'none';
+
+        // document.getElementById('fps-counter').style.display = disp;
+        document.getElementById('time-toggle').style.display = disp;
 
             // Terrain Editor panel
             const terrainEditorUI = document.getElementById('terrain-editor-ui');
@@ -2236,11 +2241,10 @@ console.error = function(...args) {
             //     touchControls.style.display = uiVisible ? '' : 'none';
             // }
 
-            // PC controls hint
-            const pcHint = document.getElementById('pc-controls-hint');
-            if (pcHint) pcHint.style.display = uiVisible ? '' : 'none';
-        }
-    });
+        // PC controls hint
+        const pcHint = document.getElementById('pc-controls-hint');
+        if (pcHint) pcHint.style.display = uiVisible ? '' : 'none';
+    }
     window.addEventListener('keyup', e => {
         if(e.key.toLowerCase() === 'w' || e.key === 'ArrowUp') keys.w = false;
         if(e.key.toLowerCase() === 's' || e.key === 'ArrowDown') keys.s = false;
@@ -2250,9 +2254,7 @@ console.error = function(...args) {
         if(e.key === ' ') keys.space = false;
     });
 
-    document.getElementById('hide-ui-toggle').addEventListener('click', () => {
-        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'h' }));
-    });
+    document.getElementById('hide-ui-toggle').addEventListener('click', toggleUI);
 
     const joyBase = document.getElementById('joystick-base');
     const joyKnob = document.getElementById('joystick-knob');
