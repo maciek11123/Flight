@@ -1,165 +1,4 @@
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Ghibli Flight — Dense & Varied</title>
-  <style>
-    :root { color-scheme: dark; }
-    html, body {
-      margin: 0; padding: 0; width: 100%; height: 100%;
-      overflow: hidden; background: #62b1e8;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      touch-action: none; 
-      user-select: none;
-    }
-    #app { position: fixed; inset: 0; touch-action: none; }
-    canvas { display: block; touch-action: none; }
-    
-    #touch-controls {
-      position: fixed; inset: 0; z-index: 20; pointer-events: none;
-    }
-    
-    #joystick-base {
-      position: absolute; left: 40px; bottom: 40px;
-      width: 100px; height: 100px; border-radius: 50%;
-      background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2);
-      pointer-events: auto;
-    }
-    
-    #joystick-knob {
-      position: absolute; left: 50%; top: 50%;
-      width: 40px; height: 40px; border-radius: 50%;
-      background: rgba(255, 255, 255, 0.3);
-      transform: translate(-50%, -50%);
-      pointer-events: none;
-    }
 
-    #boost-btn, #brake-btn {
-      width: 75px; height: 75px; border-radius: 50%;
-      color: white; font-weight: bold; font-size: 14px;
-      display: flex; align-items: center; justify-content: center;
-      user-select: none; pointer-events: auto;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-      backdrop-filter: blur(4px);
-    }
-    #boost-btn { background: rgba(59, 130, 246, 0.7); border: 2px solid rgba(96, 165, 250, 0.9); }
-    #brake-btn { background: rgba(239, 68, 68, 0.7); border: 2px solid rgba(248, 113, 113, 0.9); }
-
-    #time-toggle {
-      position: fixed; left: 16px; top: 16px;
-      color: rgba(60, 50, 70, 0.9); background: rgba(255, 255, 255, 0.6);
-      backdrop-filter: blur(6px); padding: 8px 12px;
-      border-radius: 8px; font-size: 13px; cursor: pointer;
-      border: none; z-index: 10; pointer-events: auto; font-weight: bold;
-    }
-    #settings-controls {
-      position: fixed; right: 16px; top: 16px;
-      z-index: 10; pointer-events: auto;
-      display: flex; flex-direction: column; gap: 8px; align-items: flex-end;
-    }
-    #settings-controls button {
-      color: rgba(60, 50, 70, 0.9); background: rgba(255, 255, 255, 0.6);
-      backdrop-filter: blur(6px); padding: 8px 12px;
-      border-radius: 8px; font-size: 13px; cursor: pointer;
-      border: none; font-weight: bold; width: fit-content;
-    }
-    #audio-controls {
-      position: fixed; left: 16px; top: 56px;
-      z-index: 10; pointer-events: auto;
-      display: flex; flex-direction: column; gap: 8px;
-    }
-    #audio-controls button {
-      color: rgba(60, 50, 70, 0.9); background: rgba(255, 255, 255, 0.6);
-      backdrop-filter: blur(6px); padding: 8px 12px;
-      border-radius: 8px; font-size: 13px; cursor: pointer;
-      border: none; font-weight: bold; width: fit-content;
-    }
-
-    @media (hover: hover) and (pointer: fine) {
-      #touch-controls { display: none; }
-    }
-    
-    #photo-mode-ui {
-      display: none; position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%);
-      background: rgba(255,255,255,0.8); backdrop-filter: blur(8px); padding: 12px 24px;
-      border-radius: 20px; z-index: 100; align-items: center; gap: 16px;
-      color: #333; font-weight: bold; font-family: sans-serif;
-    }
-    #photo-mode-ui button {
-      padding: 8px 16px; border: none; border-radius: 8px; background: #333; color: white;
-      cursor: pointer; font-weight: bold;
-    }
-  </style>
-</head>
-<body>
-<div id="debug-overlay" style="position: absolute; z-index: 9999; background: red; color: white; font-size: 24px; padding: 20px; display: none;"></div>
-<script>
-function showError(msg) {
-    var overlay = document.getElementById('debug-overlay');
-    overlay.style.display = 'block';
-    overlay.innerHTML += msg + '<br><br>';
-}
-window.onerror = function(msg, url, line, col, error) {
-    showError('Error: ' + msg + ' at line ' + line);
-};
-window.addEventListener("unhandledrejection", function(event) {
-    showError('Unhandled Promise Rejection: ' + (event.reason ? event.reason.message || event.reason : "unknown"));
-});
-const origConsoleError = console.error;
-console.error = function(...args) {
-    showError('Console Error: ' + args.join(' '));
-    origConsoleError.apply(console, args);
-};
-</script>
-  <div id="app"></div>
-  <button id="time-toggle">Switch to Dusk</button>
-  <div id="audio-controls">
-    <button id="music-toggle">▶ Music</button>
-    <button id="track-toggle" style="display:none">Track: Valley Wind</button>
-  </div>
-  
-  <div id="settings-controls">
-    <button id="fullscreen-toggle">⛶ Fullscreen</button>
-    <button id="pause-toggle">Pause Flight</button>
-    <button id="wind-toggle">Wind: OFF</button>
-    <button id="trails-toggle">Wind Trails: ON</button>
-    <button id="photo-toggle">📷 Photo Mode</button>
-    <button id="zoom-toggle">Zoom Out</button>
-    <button id="hide-ui-toggle">Hide UI</button>
-    <button id="char-toggle">Switch to Princess</button>
-    <button id="res-toggle">Render: HD</button>
-  </div>
-  <div id="fps-counter" style="position: fixed; top: 16px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.5); color: #fff; padding: 4px 8px; border-radius: 4px; font-family: monospace; font-size: 12px; z-index: 10; pointer-events: none;">0 FPS</div>
-  
-  <div id="photo-mode-ui">
-    <span>Photo Mode</span>
-    <button id="photo-capture">Capture</button>
-    <button id="photo-exit">Exit</button>
-  </div>
-
-
-  <div id="touch-controls">
-    <div id="joystick-base"><div id="joystick-knob"></div></div>
-    <div style="position: absolute; right: 40px; bottom: 40px; display: flex; flex-direction: column; gap: 20px;">
-        <div id="boost-btn">BOOST</div>
-        <div id="brake-btn">BRAKE</div>
-    </div>
-  </div>
-  
-  <div id="pc-controls-hint" style="display: none; position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.5); color: white; padding: 10px 20px; border-radius: 8px; font-family: sans-serif; pointer-events: none; z-index: 100;">
-    Controls: WASD/Arrows to move, Shift to Boost, Space to Brake, Scroll Wheel to Zoom
-  </div>
-
-  <script type="importmap">
-  {
-    "imports": {
-      "three": "https://cdn.jsdelivr.net/npm/three@0.185.0/build/three.module.js",
-      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.185.0/examples/jsm/"
-    }
-  }
-  </script>
-  <script type="module">
     import * as THREE from 'three';
     import { createParticleWhale } from './particleWhaleGenerator.js';
     import * as BufferGeometryUtils from 'three/addons/utils/BufferGeometryUtils.js';
@@ -288,11 +127,6 @@ console.error = function(...args) {
     // ==========================================
     const container = document.getElementById('app');
     const scene = new THREE.Scene();
-    // Global uniforms for all flora shaders
-    const globalUniforms = {
-        uTime: { value: 0 },
-        uPlayerPos: { value: new THREE.Vector3() }
-    };
     scene.background = new THREE.Color(0x8cbce6);
     scene.fog = new THREE.Fog(0x8cbce6, 100, 1800); // Fog hides terrain edges (terrain is ±2000)
 
@@ -398,181 +232,7 @@ console.error = function(...args) {
     
     const matTree = new THREE.MeshToonMaterial({ vertexColors: true, gradientMap, dithering: true });
     const matGlow = new THREE.MeshBasicMaterial({ vertexColors: true });
-    const matCrystal = new THREE.MeshPhysicalMaterial({
-        roughness: 0.1,
-        metalness: 0.1,
-        /* transmission removed */
-        ior: 1.5,
-        clearcoat: 1.0,
-        clearcoatRoughness: 0.1,
-        emissive: 0x333300,
-        emissiveIntensity: 0.3,
-        transparent: true, opacity: 0.8,
-        depthWrite: true,
-        depthTest: true,
-        side: THREE.DoubleSide
-    });
-    // ==========================================
-    // MULTI-BIOME CUSTOM SHADERS
-    // ==========================================
-    
-    // 1. Mycelium Shader (Voronoi pulsing veins + sway)
-    const matMycelium = new THREE.MeshStandardMaterial({
-        color: 0x112233, roughness: 0.8, metalness: 0.1
-    });
-    matMycelium.onBeforeCompile = (shader) => {
-        shader.uniforms.uTime = globalUniforms.uTime;
-        shader.uniforms.uPlayerPos = globalUniforms.uPlayerPos;
-        shader.vertexShader = `
-            uniform float uTime;
-            varying vec3 vWPos;
-        ` + shader.vertexShader.replace(
-            '#include <begin_vertex>',
-            `#include <begin_vertex>
-            vec4 _wp = vec4(transformed, 1.0);
-            #ifdef USE_INSTANCING
-                _wp = instanceMatrix * _wp;
-            #endif
-            _wp = modelMatrix * _wp;
-            vWPos = _wp.xyz;
-            // Underwater sway
-            transformed.x += sin(_wp.y * 0.05 + uTime * 1.5) * 1.5;
-            transformed.z += cos(_wp.y * 0.05 + uTime * 1.2) * 1.5;
-            `
-        );
-        shader.fragmentShader = `
-            uniform float uTime;
-            uniform vec3 uPlayerPos;
-            varying vec3 vWPos;
-            
-            vec3 hash(vec3 p) {
-                p = vec3(dot(p, vec3(127.1, 311.7, 74.7)), dot(p, vec3(269.5, 183.3, 246.1)), dot(p, vec3(113.5, 271.9, 124.6)));
-                return fract(sin(p)*43758.5453);
-            }
-            float voronoi(vec3 x) {
-                vec3 p = floor(x);
-                vec3 f = fract(x);
-                float res = 100.0;
-                for(int k=-1; k<=1; k++) for(int j=-1; j<=1; j++) for(int i=-1; i<=1; i++) {
-                    vec3 b = vec3(float(i), float(j), float(k));
-                    vec3 r = b - f + hash(p + b);
-                    res = min(res, dot(r, r));
-                }
-                return sqrt(res);
-            }
-        ` + shader.fragmentShader.replace(
-            '#include <emissivemap_fragment>',
-            `#include <emissivemap_fragment>
-            float v = voronoi(vWPos * 0.05);
-            float vein = smoothstep(0.4, 0.5, v);
-            
-            float t = uTime * 2.0;
-            vec3 col1 = vec3(0.0, 1.0, 1.0); // Cyan
-            vec3 col2 = vec3(0.0, 1.0, 0.0); // Green
-            vec3 col3 = vec3(1.0, 0.0, 1.0); // Magenta
-            
-            float phase = sin(t) * 0.5 + 0.5;
-            vec3 baseGlow = mix(col1, mix(col2, col3, phase), sin(t * 1.3) * 0.5 + 0.5);
-            
-            float dist = length(vWPos - uPlayerPos);
-            float proximityGlow = 1.0 - smoothstep(0.0, 200.0, dist);
-            
-            totalEmissiveRadiance += baseGlow * (1.0 - vein) * (0.2 + proximityGlow * 10.0);
-            `
-        );
-    };
-
-    // 2. Sakura Grove Shaders
-    const matCopper = new THREE.MeshStandardMaterial({
-        color: 0xcd7f32, roughness: 0.3, metalness: 0.9
-    });
-    const matSakura = new THREE.MeshStandardMaterial({
-        color: 0xff1493, roughness: 0.9, metalness: 0.0
-    });
-    matSakura.onBeforeCompile = (shader) => {
-        shader.uniforms.uTime = globalUniforms.uTime;
-        shader.uniforms.uPlayerPos = globalUniforms.uPlayerPos;
-        shader.vertexShader = `
-            uniform float uTime;
-            varying vec3 vWPos;
-        ` + shader.vertexShader.replace(
-            '#include <begin_vertex>',
-            `#include <begin_vertex>
-            vec4 _wp = vec4(transformed, 1.0);
-            #ifdef USE_INSTANCING
-                _wp = instanceMatrix * _wp;
-            #endif
-            _wp = modelMatrix * _wp;
-            vWPos = _wp.xyz;
-            // Gentle leaf sway
-            transformed.x += sin(vWPos.y * 0.1 + uTime) * 0.5;
-            `
-        );
-        shader.fragmentShader = `
-            uniform float uTime;
-            uniform vec3 uPlayerPos;
-            varying vec3 vWPos;
-        ` + shader.fragmentShader.replace(
-            '#include <color_fragment>',
-            `#include <color_fragment>
-            float h = vWPos.y * 0.02;
-            vec3 colBottom = vec3(1.0, 0.08, 0.58); // Deep pink
-            vec3 colTop = vec3(0.86, 0.63, 0.86);   // Pastel purple
-            diffuseColor.rgb *= mix(colBottom, colTop, smoothstep(0.0, 1.0, sin(h + uTime*0.2)*0.5+0.5));
-            
-            float dist = length(vWPos - uPlayerPos);
-            float proximityGlow = 1.0 - smoothstep(0.0, 200.0, dist);
-            diffuseColor.rgb += vec3(1.0, 0.5, 0.8) * proximityGlow * 2.0;
-            `
-        );
-    };
-
-    // 3. Lotus Field Shader (Subsurface glow, breathing)
-    const matLotus = new THREE.MeshStandardMaterial({
-        color: 0x00ffff, roughness: 0.2, metalness: 0.1, side: THREE.DoubleSide
-    });
-    matLotus.onBeforeCompile = (shader) => {
-        shader.uniforms.uTime = globalUniforms.uTime;
-        shader.uniforms.uPlayerPos = globalUniforms.uPlayerPos;
-        shader.vertexShader = `
-            uniform float uTime;
-            varying vec3 vWPos;
-            varying float vHeight;
-        ` + shader.vertexShader.replace(
-            '#include <begin_vertex>',
-            `#include <begin_vertex>
-            vec4 _wp = vec4(transformed, 1.0);
-            #ifdef USE_INSTANCING
-                _wp = instanceMatrix * _wp;
-            #endif
-            _wp = modelMatrix * _wp;
-            vWPos = _wp.xyz;
-            vHeight = position.y;
-            
-            // Breathing animation (opening and closing petals based on distance from center)
-            float distFromCenter = length(position.xz);
-            float breath = sin(uTime * 1.5) * 0.5 + 0.5;
-            transformed.y += breath * distFromCenter * 0.2;
-            `
-        );
-        shader.fragmentShader = `
-            uniform float uTime;
-            uniform vec3 uPlayerPos;
-            varying vec3 vWPos;
-            varying float vHeight;
-        ` + shader.fragmentShader.replace(
-            '#include <emissivemap_fragment>',
-            `#include <emissivemap_fragment>
-            float glow = smoothstep(0.0, 5.0, vHeight);
-            vec3 tealGlow = mix(vec3(0.0, 0.5, 1.0), vec3(0.0, 1.0, 0.8), sin(uTime)*0.5+0.5);
-            
-            float dist = length(vWPos - uPlayerPos);
-            float proximityGlow = 1.0 - smoothstep(0.0, 200.0, dist);
-            
-            totalEmissiveRadiance += tealGlow * glow * (0.8 + proximityGlow * 8.0);
-            `
-        );
-    };
+    const treeMaterials = [matTree, matGlow];
 
 
 
@@ -606,29 +266,15 @@ console.error = function(...args) {
         return 70.0 * (n0 + n1 + n2);
     }
 
-    function getBiome(x, z) {
-        // Very low frequency noise for macro-scale biomes (takes roughly 20,000 units to transition)
-        let val = snoise(x * 0.00005, z * 0.00005);
-        let normalized = Math.max(0.0, Math.min(1.0, (val + 1.0) * 0.5));
-        if (normalized < 0.33) return 0; // Biome 0: Mycelium
-        if (normalized < 0.66) return 1; // Biome 1: Sakura
-        return 2;                        // Biome 2: Lotus
-    }
-
     function terrainHeightJS(x, z) {
-        globalUniforms.uPlayerPos.value.set(0, 0, 0); // Simplified; update with real player pos logic
-        // Large rolling whimsical hills
-        let y = snoise(x * 0.001, z * 0.001) * 35.0;
-        // Medium details
-        y += snoise(x * 0.003, z * 0.003) * 15.0;
-        // Fine details
-        y += Math.abs(snoise(x * 0.01, z * 0.01)) * 5.0;
-        // Magical dunes/spikes
-        let hillNoise = snoise(x * 0.0005, z * 0.0005);
-        if (hillNoise > 0.3) {
-            y += Math.pow(hillNoise - 0.3, 2.0) * 80.0;
+        let y = snoise(x * 0.002, z * 0.002) * 5.0 + 3.0; 
+        y += snoise(x * 0.01, z * 0.01) * 3.0; 
+        y += Math.abs(snoise(x * 0.05, z * 0.05)) * 1.5;
+        let hillNoise = snoise(x * 0.001, z * 0.001);
+        if (hillNoise > 0.5) {
+            y += (hillNoise - 0.5) * 20.0;
         }
-        return y - 10.0; // Lower base so water forms natural lakes/rivers
+        return y;
     }
 
     // ==========================================
@@ -643,26 +289,14 @@ console.error = function(...args) {
     let lastTerrainGridX = -9999;
     let lastTerrainGridZ = -9999;
 
-    // Lush Biome Colors (current)
     const colorDeepWater = new THREE.Color(0x2d0a42);
-    const colorShallowWater = new THREE.Color(0xff66b2);
+    const colorShallowWater = new THREE.Color(0xff66b2); // Matches the waterMesh exactly
     const colorSand = new THREE.Color(0xd8bfd8);
     const colorIslandGrass = new THREE.Color(0x008080);
-    const colorHigh = new THREE.Color(0x00ffff);
+    const colorHigh = new THREE.Color(0x00ffff); // Grass High
     const colorIslandRock = new THREE.Color(0x2a2a4a);
     const colorDirt = new THREE.Color(0x501b45); 
-
-    // Ethereal Biome Colors (new)
-    const ethDeepWater = new THREE.Color(0x0a1030);
-    const ethShallowWater = new THREE.Color(0x19286c);
-    const ethSand = new THREE.Color(0x3a4066);
-    const ethGrass = new THREE.Color(0x1a214d);
-    const ethHigh = new THREE.Color(0x27357c);
-    const ethRock = new THREE.Color(0x0a0f26);
-    const ethDirt = new THREE.Color(0x131a3d); 
-    
-    const tempLush = new THREE.Color();
-    const tempEth = new THREE.Color();
+    const colorPath = new THREE.Color(0x733d6b); // dirt path color
     const tempColor = new THREE.Color();
 
     function smoothstep(edge0, edge1, x) {
@@ -730,31 +364,25 @@ console.error = function(...args) {
             const patchNoise = (Math.sin(worldX * 0.1) + Math.cos(worldZ * 0.1)) * 0.15;
             blend = Math.min(Math.max(blend + patchNoise, 0), 1);
 
-            const biomeVal = getBiome(worldX, worldZ);
-            const idx = i * 3;
-            
-            // Apply color based on biome
-            if (biomeVal === 0) {
-                // Mycelium: dark purples/blues
-                const mix = Math.random();
-                colors.array[idx] = 0.1 + mix * 0.1;
-                colors.array[idx+1] = 0.05 + mix * 0.1;
-                colors.array[idx+2] = 0.15 + mix * 0.1;
-            } else if (biomeVal === 1) {
-                // Sakura: white earth/light pink
-                const mix = Math.random();
-                colors.array[idx] = 0.8 + mix * 0.2;
-                colors.array[idx+1] = 0.75 + mix * 0.2;
-                colors.array[idx+2] = 0.8 + mix * 0.2;
+            if (h < 1.0) {
+                tempColor.copy(colorDeepWater);
+            } else if (h < 2.5) {
+                tempColor.lerpColors(colorDeepWater, colorShallowWater, smoothstep(1.0, 2.5, h));
+            } else if (h < 4.0) {
+                // At exactly h=2.5, it is pure colorShallowWater (matches waterMesh).
+                // Smoothly transition to sand from 2.5 to 4.0 above water level.
+                tempColor.lerpColors(colorShallowWater, colorSand, smoothstep(2.5, 4.0, h));
+            } else if (h < 6.0) {
+                tempColor.lerpColors(colorSand, colorIslandGrass, smoothstep(4.0, 6.0, h));
+            } else if (h < 25) {
+                tempColor.lerpColors(colorIslandGrass, colorHigh, smoothstep(6.0, 25, h));
+            } else if (h < 35) {
+                tempColor.lerpColors(colorHigh, colorIslandRock, smoothstep(25, 35, h));
             } else {
-                // Lotus: deep aquatic greens/blues
-                const mix = Math.random();
-                colors.array[idx] = 0.05 + mix * 0.1;
-                colors.array[idx+1] = 0.2 + mix * 0.2;
-                colors.array[idx+2] = 0.3 + mix * 0.2;
+                tempColor.lerpColors(colorIslandRock, colorDirt, smoothstep(35, 50, h));
             }
 
-            colors.setXYZ(i, colors.array[idx], colors.array[idx+1], colors.array[idx+2]);
+            colors.setXYZ(i, tempColor.r, tempColor.g, tempColor.b);
         }
         
         terrainGeo.computeVertexNormals(); 
@@ -773,7 +401,7 @@ console.error = function(...args) {
     const ROCK_COUNT = isMobile ? 60 : 180;
     const BUSH_COUNT = isMobile ? 72 : 216;
     const ANIMAL_COUNT = isMobile ? 25 : 50;
-    const CRYSTAL_COUNT = 50;
+    const CLOUD_COUNT = 50;
     const FLOWER_COUNT = isMobile ? 100 : 300; // Removed flowers
     const TREE_MULT = isMobile ? 0.3 : 1.0;
     
@@ -787,85 +415,103 @@ console.error = function(...args) {
         geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
     }
 
-    // ==========================================
-    // PROCEDURAL BIOME GEOMETRIES
-    // ==========================================
     
-    // Biome 1: Procedural Giant Mushrooms
-    const createGiantMushroom = (stemR, capR, height) => {
+    
+    const createMushroom = (stemColor, capColor, size, height) => {
         const geos = [];
-        const stem = new THREE.CylinderGeometry(stemR * 0.5, stemR, height, 8);
+        const stem = new THREE.CylinderGeometry(0.3 * size, 0.5 * size, height, 5); // low poly stem
         stem.translate(0, height / 2, 0);
+        applyColor(stem, stemColor);
         geos.push(stem);
-        
-        const cap = new THREE.SphereGeometry(capR, 12, 8, 0, Math.PI * 2, 0, Math.PI * 0.55);
-        cap.scale(1.0, 0.45, 1.0);
-        cap.translate(0, height, 0);
+        // Low poly cap! (5 radial segments, 3 height segments)
+        const cap = new THREE.SphereGeometry(2.5 * size, 6, 4, 0, Math.PI * 2, 0, Math.PI / 2);
+        cap.translate(0, height - 0.2, 0);
+        // add some random rotation to cap vertices for a jagged natural look
+        const pos = cap.attributes.position;
+        for(let i=0; i<pos.count; i++) {
+            if (pos.getY(i) > height) {
+               pos.setY(i, pos.getY(i) + (Math.random() - 0.5) * 0.5 * size);
+            }
+        }
+        applyColor(cap, capColor);
         geos.push(cap);
-        
         const merged = BufferGeometryUtils.mergeGeometries(geos.map(g => g.index ? g.toNonIndexed() : g), false);
-        merged.scale(2.0, 2.0, 2.0);
+        merged.scale(2.5, 2.5, 2.5);
         return merged;
     };
-    const geoMycelium1 = createGiantMushroom(1.0, 4.0, 6.0);
-    const geoMycelium2 = createGiantMushroom(0.8, 3.0, 4.5);
+    // Softer bioluminescent colors
+    const geoTree1 = createMushroom(0x4a235a, 0x87cefa, 1.0, 3.0); // Light Sky Blue
+    const geoTree2 = createMushroom(0x2e1114, 0xffb6c1, 1.5, 4.5); // Pastel Pink
 
-    // Biome 2: Ethereal Sakura
-    const createSakuraTrunk = (size, height) => {
-        const geos = [];
-        // Intertwined trunk
-        for(let i = 0; i < 3; i++) {
-            const trunk = new THREE.CylinderGeometry(size*0.3, size*0.5, height, 6);
-            trunk.rotateZ(0.1);
-            trunk.translate(Math.sin(i*2.0)*size*0.3, height/2, Math.cos(i*2.0)*size*0.3);
-            geos.push(trunk);
-        }
-        const merged = BufferGeometryUtils.mergeGeometries(geos.map(g => g.index ? g.toNonIndexed() : g), false);
-        merged.scale(1.5, 1.5, 1.5);
-        return merged;
-    };
-    const createSakuraCanopy = (size, height) => {
-        const geos = [];
-        for(let i=0; i < 5; i++) {
-            const blob = new THREE.SphereGeometry(size * 1.5, 8, 8);
-            blob.translate((Math.random()-0.5)*size*2, height + Math.random()*size*2, (Math.random()-0.5)*size*2);
-            geos.push(blob);
-        }
-        const merged = BufferGeometryUtils.mergeGeometries(geos.map(g => g.index ? g.toNonIndexed() : g), false);
-        merged.scale(1.5, 1.5, 1.5);
-        return merged;
-    };
-    const geoSakuraTrunk1 = createSakuraTrunk(1.0, 6.0);
-    const geoSakuraCanopy1 = createSakuraCanopy(3.0, 6.0);
-    const geoSakuraTrunk2 = createSakuraTrunk(0.7, 4.0);
-    const geoSakuraCanopy2 = createSakuraCanopy(2.0, 4.0);
+    
+    
+    const t3Geos = [];
+    const t3Trunk = new THREE.CylinderGeometry(0.3, 0.5, 3.5, 5);
+    t3Trunk.translate(0, 1.75, 0);
+    applyColor(t3Trunk, 0x111122);
+    t3Geos.push(t3Trunk);
+    const cone31 = new THREE.ConeGeometry(2.0, 3, 5);
+    cone31.translate(0, 3, 0); applyColor(cone31, 0x7fffd4); t3Geos.push(cone31);
+    const geoTree3 = BufferGeometryUtils.mergeGeometries(t3Geos.map(g => g.index ? g.toNonIndexed() : g), false);
+    geoTree3.scale(2.5, 2.5, 2.5);
 
-    // Biome 3: Bioluminescent Lotus
-    const createGiantLotus = (size) => {
-        const geos = [];
-        // Lily pad base
-        const pad = new THREE.CylinderGeometry(size*2.0, size*2.0, 0.5, 16);
-        pad.scale(1.0, 1.0, 0.8);
-        geos.push(pad);
-        
-        // Petals
-        const petalCount = 8;
-        for (let i = 0; i < petalCount; i++) {
-            const angle = (i / petalCount) * Math.PI * 2;
-            const petal = new THREE.ConeGeometry(size * 0.8, size * 2.5, 4);
-            petal.translate(0, size * 1.0, 0);
-            petal.rotateZ(Math.PI * 0.75); // angled outwards
-            petal.rotateY(angle);
-            petal.translate(Math.cos(angle) * size * 0.5, 0.5, Math.sin(angle) * size * 0.5);
-            geos.push(petal);
-        }
-        const merged = BufferGeometryUtils.mergeGeometries(geos.map(g => g.index ? g.toNonIndexed() : g), false);
-        merged.scale(1.5, 1.5, 1.5);
-        return merged;
-    };
-    const geoLotus1 = createGiantLotus(2.0);
-    const geoLotus2 = createGiantLotus(3.5);
+    const t4Geos = [];
+    const t4Trunk = new THREE.CylinderGeometry(0.3, 0.6, 3.0, 5);
+    t4Trunk.translate(0, 1.5, 0);
+    applyColor(t4Trunk, 0x221133);
+    t4Geos.push(t4Trunk);
+    const cone41 = new THREE.ConeGeometry(1.8, 2.5, 5);
+    cone41.translate(0, 2.8, 0); applyColor(cone41, 0xdda0dd); t4Geos.push(cone41);
+    const cone42 = new THREE.ConeGeometry(1.5, 2.5, 5);
+    cone42.translate(0, 4.0, 0); applyColor(cone42, 0xdda0dd); t4Geos.push(cone42);
+    const geoTree4 = BufferGeometryUtils.mergeGeometries(t4Geos.map(g => g.index ? g.toNonIndexed() : g), false);
+    geoTree4.scale(2.5, 2.5, 2.5);
 
+// Tree 5: Complex Bonsai
+    const t5Geos = [];
+    const t5Trunk = new THREE.CylinderGeometry(0.6, 1.2, 3.5, 6);
+    t5Trunk.translate(0, 1.75, 0);
+    applyColor(t5Trunk, 0x7a6f5e);
+    t5Geos.push(t5Trunk);
+    
+    const leavesPos = [
+        {x: 0, y: 5.0, z: 0, s: 1.2},
+        {x: 2.2, y: 3.8, z: 0, s: 1.0},
+        {x: -1.8, y: 3.2, z: 0.5, s: 0.9},
+        {x: 1.0, y: 4.2, z: -1.2, s: 0.8}
+    ];
+    leavesPos.forEach(pos => {
+        const leaf = new THREE.CylinderGeometry(1.5*pos.s, 2.8*pos.s, 0.8*pos.s, 6);
+        leaf.translate(pos.x, pos.y, pos.z);
+        applyColor(leaf, 0x5dcf66);
+        t5Geos.push(leaf);
+    });
+    const geoTree5 = BufferGeometryUtils.mergeGeometries(t5Geos.map(g => g.index ? g.toNonIndexed() : g), false);
+    geoTree5.scale(2.5, 2.5, 2.5);
+
+    // Tree 6: Pink Cherry Blossom
+    const t6Geos = [];
+    const t6Trunk = new THREE.CylinderGeometry(0.3, 0.6, 3, 3);
+    t6Trunk.translate(0, 1.5, 0);
+    applyColor(t6Trunk, 0xa87f5e);
+    t6Geos.push(t6Trunk);
+
+    const blossomPos = [
+        {x: 0, y: 4.5, z: 0, s: 1.6},
+        {x: -1.2, y: 3.5, z: 0.8, s: 1.3},
+        {x: 1.2, y: 3.8, z: -0.6, s: 1.4}
+    ];
+    blossomPos.forEach(pos => {
+        const leaf = new THREE.OctahedronGeometry(1.5 * pos.s, 0);
+        leaf.scale(1, 0.7, 1);
+        leaf.translate(pos.x, pos.y, pos.z);
+        applyColor(leaf, 0xffa6c9);
+        t6Geos.push(leaf);
+    });
+    const geoTree6 = BufferGeometryUtils.mergeGeometries(t6Geos.map(g => g.index ? g.toNonIndexed() : g), false);
+    geoTree6.scale(2.5, 2.5, 2.5);
+
+    
     const wallColors = [0xfef0c8, 0xebaf9b, 0x82bfa8, 0x6e9ca8, 0xe1d9c1, 0xffffff, 0xcbe3d6]; 
     const roofColors = [0xd95a53, 0x4a7c8c, 0x5a6351, 0x8a7b6b, 0x8a4538, 0x566d8f];
     const woodColor = 0x5c4033;
@@ -994,42 +640,37 @@ console.error = function(...args) {
     b3.translate(0, 0.3, 0);
     b3.rotateX(-0.2);
 
-    const geoCrystal = new THREE.OctahedronGeometry(6, 0).toNonIndexed();
-    geoCrystal.scale(1, 3, 1);
+    const geoCloud = new THREE.OctahedronGeometry(5, 0);
+    geoCloud.scale(1.0, 3.0, 1.0); 
+    const ccolors = [];
+    for (let i = 0; i < geoCloud.attributes.position.count; i++) {
+        const color = new THREE.Color();
+        color.setHSL(Math.random(), 1.0, 0.5); // Random vibrant colors
+        ccolors.push(color.r, color.g, color.b);
+    }
+    geoCloud.setAttribute('color', new THREE.Float32BufferAttribute(ccolors, 3));
+    geoCloud.computeVertexNormals();
 
-    // Procedural trees removed — only loaded GLB models are used now
-    const instMycelium1 = new THREE.InstancedMesh(geoMycelium1, matMycelium, 1);
-    const instMycelium2 = new THREE.InstancedMesh(geoMycelium2, matMycelium, 1);
-    const instSakuraTrunk1 = new THREE.InstancedMesh(geoSakuraTrunk1, matCopper, 1);
-    const instSakuraCanopy1 = new THREE.InstancedMesh(geoSakuraCanopy1, matSakura, 1);
-    const instSakuraTrunk2 = new THREE.InstancedMesh(geoSakuraTrunk2, matCopper, 1);
-    const instSakuraCanopy2 = new THREE.InstancedMesh(geoSakuraCanopy2, matSakura, 1);
-    const instLotus1 = new THREE.InstancedMesh(geoLotus1, matLotus, 1);
-    const instLotus2 = new THREE.InstancedMesh(geoLotus2, matLotus, 1);
-
-    const treeMeshes = [
-        instMycelium1, instMycelium2,
-        instSakuraTrunk1, instSakuraCanopy1,
-        instSakuraTrunk2, instSakuraCanopy2,
-        instLotus1, instLotus2
-    ];
+    // Meshes
+    const instTree1 = new THREE.InstancedMesh(geoTree1, treeMaterials, Math.floor(3600 * TREE_MULT));
+    const instTree2 = new THREE.InstancedMesh(geoTree2, treeMaterials, Math.floor(3600 * TREE_MULT));
+    const instTree3 = new THREE.InstancedMesh(geoTree3, treeMaterials, Math.floor(3600 * TREE_MULT));
+    const instTree4 = new THREE.InstancedMesh(geoTree4, treeMaterials, Math.floor(2400 * TREE_MULT));
+    const instTree5 = new THREE.InstancedMesh(geoTree5, treeMaterials, 0); // Removed trees with cut off tops
+    const instTree6 = new THREE.InstancedMesh(geoTree6, treeMaterials, 0); // Removed pink trees
+    
+    
+    const treeMeshes = [instTree1, instTree2, instTree3, instTree4, instTree5, instTree6];
     treeMeshes.forEach(mesh => {
-        mesh.maxCount = 0;
+        mesh.maxCount = mesh.count;
     });
 
 
     const instRocks = new THREE.InstancedMesh(geoRock, matRock, ROCK_COUNT);
     
     const instAnimals = new THREE.InstancedMesh(geoAnimal, matAnimal, ANIMAL_COUNT);
-    const instCrystals = new THREE.InstancedMesh(geoCrystal, matCrystal, CRYSTAL_COUNT);
+    const instClouds = new THREE.InstancedMesh(geoCloud, matGlow, CLOUD_COUNT);
     const instFlowers = new THREE.InstancedMesh(geoFlower, matFlower, FLOWER_COUNT);
-
-    const friendlyCloudColors = [0xf5f5ff, 0xfff8ed, 0xf0ecf6, 0xeaf7f0, 0xfdeef1, 0xeaf0ff, 0xfff0f5, 0xf0fff5];
-    const tempCloudColor = new THREE.Color();
-    for (let i = 0; i < CRYSTAL_COUNT; i++) {
-        tempCloudColor.setHex(friendlyCloudColors[i % friendlyCloudColors.length]);
-        instCrystals.setColorAt(i, tempCloudColor);
-    }
 
     const rockColors = [0xe5d4ba, 0xcbb192, 0xd8c8b8, 0x8a7b69, 0xd2c0a3];
     const tempRockColor = new THREE.Color();
@@ -1048,9 +689,15 @@ console.error = function(...args) {
     // Water Mesh
     let waterMesh;
     
+    let instHouses = null;
+    let instBoats = null;
+    let instCastles = null;
+    const HOUSE_COUNT = 60;
+    const BOAT_COUNT = 40;
+    const CASTLE_COUNT = 5;
+
     function loadAssets() {
-        // No-op: actual GLB loading happens in loadNatureAssets(), called after
-        // gltfLoader is constructed (see below, near KTX2/Meshopt setup).
+        // All 3D models removed
     }
 
     const waterGeo = new THREE.PlaneGeometry(5000, 5000);
@@ -1062,12 +709,11 @@ console.error = function(...args) {
     
     
     const waterMat = new THREE.MeshStandardMaterial({ 
-        color: 0x00d4ff, // Bright inviting cyan
-        emissive: 0x002244,
+        color: 0xff66b2, 
         roughness: 0.1, 
         metalness: 0.8,
         transparent: true,
-        opacity: 0.85
+        opacity: 0.8
     });
 
     
@@ -1109,26 +755,22 @@ console.error = function(...args) {
         shader.fragmentShader = shader.fragmentShader.replace(
             `#include <color_fragment>`,
             `#include <color_fragment>
-             vec2 uv = vWorldPos.xz * 0.08; 
-             float n1 = 1.0 - abs(snoise(uv + vec2(uTime * 0.15, uTime * 0.08)));
-             float n2 = 1.0 - abs(snoise(uv * 1.5 - vec2(uTime * 0.2, -uTime * 0.1)));
+             vec2 uv = vWorldPos.xz * 0.1; // Much smaller, more tightly packed ripples
+             float n1 = 1.0 - abs(snoise(uv + vec2(uTime * 0.1, uTime * 0.05)));
+             float n2 = 1.0 - abs(snoise(uv * 1.5 - vec2(uTime * 0.15, -uTime * 0.05)));
              float caustics = pow(n1, 6.0) + pow(n2, 6.0) * 0.5;
              
+             // Fade out ripples on inland rivers and small lakes perfectly
              float simpleTerrainH = snoise(vWorldPos.xz * 0.003) * 15.0;
              float deepWater = smoothstep(-0.5, -4.0, simpleTerrainH); 
              
              caustics = clamp(caustics, 0.0, 1.0) * deepWater;
+             diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.9, 0.95, 1.0), caustics * 0.5);
              
-             // Sparkling effect
-             float sparkles = pow(abs(snoise(vWorldPos.xz * 5.0 + uTime * 2.0)), 20.0);
-             
-             diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.8, 0.95, 1.0), caustics * 0.6);
-             diffuseColor.rgb += sparkles * 0.8 * vec3(1.0, 1.0, 1.0); // add sparkles
-             
-             // Darken water in the distance
+             // Darken water in the distance to give depth to the vast ocean
              float dist = length(vWorldPos.xz - cameraPosition.xz);
              float depthFade = smoothstep(50.0, 350.0, dist);
-             diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.0, 0.1, 0.4), depthFade);
+             diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * 0.2, depthFade);
             `
         );
     };
@@ -1151,14 +793,17 @@ console.error = function(...args) {
         scene.add(mesh);
     });
 
-    instCrystals.castShadow = true;
-    instCrystals.frustumCulled = false;
-    scene.add(instCrystals);
-    
-    
+    instClouds.castShadow = true;
+    instClouds.frustumCulled = false;
+    scene.add(instClouds);
 
-    // High clouds completely removed
-
+    // Super High Cumulonimbus Clouds
+    const HIGH_CLOUD_COUNT = 30;
+    const highCloudGeo = new THREE.DodecahedronGeometry(150, 1);
+    const highCloudMat = new THREE.MeshToonMaterial({ color: 0xffffff, transparent: true, opacity: 0.9 });
+    const instHighClouds = new THREE.InstancedMesh(highCloudGeo, highCloudMat, HIGH_CLOUD_COUNT);
+    instHighClouds.frustumCulled = false;
+    scene.add(instHighClouds);
     
     instFlowers.receiveShadow = false;
     instFlowers.castShadow = false;
@@ -1239,7 +884,7 @@ console.error = function(...args) {
     // Initialize all to hidden
     const dummyMatrix = new THREE.Matrix4();
     dummyMatrix.setPosition(0, -1000, 0);
-    [...treeMeshes, instRocks, instCrystals, instFlowers].forEach(mesh => {
+    [...treeMeshes, instRocks,  instClouds, instFlowers, instHighClouds].forEach(mesh => {
         for(let i=0; i<mesh.count; i++) {
             mesh.setMatrixAt(i, dummyMatrix);
         }
@@ -1543,8 +1188,8 @@ console.error = function(...args) {
     let isPrewarming = false;
 
     function updateInstances(playerX, playerZ, time, dt, playerYaw) {
-        const dist = 350;
-
+        const dist = 350; 
+        
         logicTimer += dt;
         const shouldUpdateTerrain = logicTimer >= (1.0 / 15.0);
         if (shouldUpdateTerrain) {
@@ -1553,26 +1198,48 @@ console.error = function(...args) {
         
         // Clouds
         const cloudDist = 1200;
-        for (let i = 0; i < CRYSTAL_COUNT; i++) {
-            instCrystals.getMatrixAt(i, dummy.matrix);
+        for (let i = 0; i < CLOUD_COUNT; i++) {
+            instClouds.getMatrixAt(i, dummy.matrix);
             dummy.matrix.decompose(dummy.position, dummy.quaternion, dummy.scale);
             
             if (Math.abs(dummy.position.x - playerX) > cloudDist || Math.abs(dummy.position.z - playerZ) > cloudDist || dummy.position.y < -500) {
                 dummy.position.set(
                     playerX + (Math.random() - 0.5) * cloudDist * 2.0,
-                    200 + Math.random() * 150,
+                    150 + Math.random() * 100,
                     playerZ + (Math.random() - 0.5) * cloudDist * 2.0
                 );
-                dummy.rotation.set(0, Math.random() * Math.PI * 2, 0);
-                dummy.scale.set(1.0 + Math.random() * 1.5, 0.4 + Math.random() * 0.6, 1.0 + Math.random() * 1.5);
+                dummy.rotation.set(0, Math.random() * Math.PI, 0);
+                dummy.scale.setScalar(1.5 + Math.random() * 2.0); 
             }
             dummy.position.x += 4.0 * dt;
             dummy.position.z += 1.5 * dt;
             dummy.updateMatrix();
-            instCrystals.setMatrixAt(i, dummy.matrix);
+            instClouds.setMatrixAt(i, dummy.matrix);
         }
-        instCrystals.instanceMatrix.needsUpdate = true;
-        
+        instClouds.instanceMatrix.needsUpdate = true;
+
+        // High Cumulonimbus Clouds
+        const highCloudDist = 3500;
+        for (let i = 0; i < HIGH_CLOUD_COUNT; i++) {
+            instHighClouds.getMatrixAt(i, dummy.matrix);
+            dummy.position.setFromMatrixPosition(dummy.matrix);
+            
+            if (Math.abs(dummy.position.x - playerX) > highCloudDist || Math.abs(dummy.position.z - playerZ) > highCloudDist || dummy.position.y < -500) {
+                dummy.position.set(
+                    playerX + (Math.random() - 0.5) * highCloudDist * 2.0,
+                    1500 + Math.random() * 600, // Super high altitude
+                    playerZ + (Math.random() - 0.5) * highCloudDist * 2.0
+                );
+                dummy.rotation.set(0, Math.random() * Math.PI, 0);
+                // Cumulonimbus shape: wide and tall
+                dummy.scale.set(0.5 + Math.random() * 0.5, 0.5 + Math.random() * 0.5, 0.5 + Math.random() * 0.5); 
+            }
+            dummy.position.x += 1.5 * dt; // slow drift
+            dummy.updateMatrix();
+            instHighClouds.setMatrixAt(i, dummy.matrix);
+        }
+        instHighClouds.instanceMatrix.needsUpdate = true;
+
         if (shouldUpdateTerrain) {
             // Trees
             treeMeshes.forEach((instMesh, meshIdx) => {
@@ -1589,28 +1256,20 @@ console.error = function(...args) {
                     }
                     
                     let valid = false;
-                    let nx, nz, tmpH2, pathVal, cellKey;
+                    let nx, nz, h, pathVal, cellKey;
                     let attempts = 0;
 
                     while(!valid && attempts < 15) {
                         nx = playerX + (Math.random() - 0.5) * treeDist * 2.0;
                         nz = playerZ + (Math.random() - 0.5) * treeDist * 2.0;
-                        tmpH2 = getMeshHeight(nx, nz);
+                        h = getMeshHeight(nx, nz);
                         pathVal = getPathStrength(nx, nz);
                         cellKey = getTreeCell(nx, nz);
                         
                         let isClearing = snoise(nx * 0.003, nz * 0.003 + 50) > 0.2; // Massive sweeping plains
 
-                        if (!isClearing && tmpH2 > 2.5 && tmpH2 < 45 && pathVal < 0.1 && (Math.random() > 0.1)) { 
-                            let biomeVal = getBiome(nx, nz);
-                            let targetBiome;
-                            if (meshIdx < 2) targetBiome = 0;
-                            else if (meshIdx < 6) targetBiome = 1;
-                            else targetBiome = 2;
-                            
-                            let validBiome = (biomeVal === targetBiome);
-                            
-                            if (validBiome && !treeGrid.has(cellKey)) {
+                        if (!isClearing && h > 2.5 && h < 45 && pathVal < 0.1 && (Math.random() > 0.1)) { 
+                            if (!treeGrid.has(cellKey)) {
                                 valid = true;
                             }
                         }
@@ -1619,7 +1278,7 @@ console.error = function(...args) {
 
                     if (valid) {
                         treeGrid.add(cellKey);
-                        dummy.position.set(nx, tmpH2, nz);
+                        dummy.position.set(nx, h, nz);
                         dummy.rotation.set(0, Math.random() * Math.PI, 0);
                         
                         let scale = 0.7 + Math.random() * 1.1;
@@ -1645,12 +1304,13 @@ console.error = function(...args) {
             if (Math.abs(dummy.position.x - playerX) > dist || Math.abs(dummy.position.z - playerZ) > dist || dummy.position.y < -500) {
                 const nx = playerX + (Math.random() - 0.5) * dist * 2.0;
                 const nz = playerZ + (Math.random() - 0.5) * dist * 2.0;
-                const tmpH = getMeshHeight(nx, nz);
+                const h = getMeshHeight(nx, nz);
 
-                if (tmpH > 2.6 && getPathStrength(nx, nz) < 0.1) {
-                    dummy.position.set(nx, tmpH - 0.5, nz);
+                if (h > 2.6 && getPathStrength(nx, nz) < 0.1) { 
+                    dummy.position.set(nx, h + 80 + Math.random() * 150, nz);
                     dummy.rotation.set(Math.random(), Math.random(), Math.random());
-                    dummy.scale.set(1.0 + Math.random() * 2.5, 0.8 + Math.random() * 1.5, 1.0 + Math.random() * 2.5); 
+                    // Uneven scaling creates distinct natural boulders
+                    dummy.scale.set(8.0 + Math.random() * 15.0, 5.0 + Math.random() * 10.0, 8.0 + Math.random() * 15.0); 
                 } else {
                     dummy.position.set(0, -1000, 0);
                 }
@@ -1660,62 +1320,145 @@ console.error = function(...args) {
             }
         }
 
-        // Loaded Biome Assets (GLB models: crystals, shrooms, rocks, portals, etc.)
-        if (loadedBiomeMeshes) {
-            for (let biomeIdx = 0; biomeIdx < loadedBiomeMeshes.length; biomeIdx++) {
-                const meshes = loadedBiomeMeshes[biomeIdx];
-                for (let mIdx = 0; mIdx < meshes.length; mIdx++) {
-                    const instMesh = meshes[mIdx];
-                    const count = instMesh.maxCount || instMesh.count;
-                    let assetUpdated = false;
-                    for (let i = currentFrame % 10; i < count; i += 10) {
-                        instMesh.getMatrixAt(i, dummy.matrix);
-                        dummy.position.setFromMatrixPosition(dummy.matrix);
+        // Houses
+        if (instHouses) {
+            let housesUpdated = false;
+            for (let i = currentFrame % 5; i < HOUSE_COUNT; i += 5) {
+                instHouses.getMatrixAt(i, dummy.matrix);
+                dummy.position.setFromMatrixPosition(dummy.matrix);
+                
+                if (Math.abs(dummy.position.x - playerX) > dist || Math.abs(dummy.position.z - playerZ) > dist || dummy.position.y < -500) {
+                    const nx = playerX + (Math.random() - 0.5) * dist * 2.0;
+                    const nz = playerZ + (Math.random() - 0.5) * dist * 2.0;
+                    const h = getMeshHeight(nx, nz);
 
-                        if (Math.abs(dummy.position.x - playerX) > treeDist || Math.abs(dummy.position.z - playerZ) > treeDist || dummy.position.y < -500) {
+                    if (h > 1.5 && h < 40.0 && Math.random() > 0.5) {
+                        dummy.position.set(nx, h, nz);
+                        dummy.rotation.set(0, Math.random() * Math.PI, 0);
+                        dummy.scale.setScalar(0.5 + Math.random() * 0.3); 
+                    } else {
+                        dummy.position.set(0, -1000, 0);
+                    }
+                    dummy.updateMatrix();
+                    instHouses.setMatrixAt(i, dummy.matrix);
+                    housesUpdated = true;
+                }
+            }
+            if (housesUpdated) instHouses.instanceMatrix.needsUpdate = true;
+        }
 
-                            if (dummy.position.y > 0) {
-                                treeGrid.delete(getTreeCell(dummy.position.x, dummy.position.z));
-                            }
+        // Boats
+        if (instBoats) {
+            let boatsUpdated = false;
+            for (let i = currentFrame % 5; i < BOAT_COUNT; i += 5) {
+                instBoats.getMatrixAt(i, dummy.matrix);
+                dummy.position.setFromMatrixPosition(dummy.matrix);
+                
+                if (Math.abs(dummy.position.x - playerX) > dist || Math.abs(dummy.position.z - playerZ) > dist || dummy.position.y < -500) {
+                    const nx = playerX + (Math.random() - 0.5) * dist * 2.0;
+                    const nz = playerZ + (Math.random() - 0.5) * dist * 2.0;
+                    const h = getMeshHeight(nx, nz);
 
-                            let valid = false;
-                            let nx, nz, tmpH2, pathVal, cellKey;
-                            let attempts = 0;
+                    if (h < 1.8 && Math.random() < 0.2) { 
+                        dummy.position.set(nx, 2.4, nz); // Bob on water line
+                        dummy.rotation.set(0, Math.random() * Math.PI, 0);
+                        dummy.scale.setScalar(0.8 + Math.random() * 0.4); 
+                    } else {
+                        dummy.position.set(0, -1000, 0);
+                    }
+                    dummy.updateMatrix();
+                    instBoats.setMatrixAt(i, dummy.matrix);
+                    boatsUpdated = true;
+                } else if (dummy.position.y > 0) {
+                    // Make boats slowly drift and bob
+                    dummy.rotation.setFromRotationMatrix(dummy.matrix);
+                    dummy.position.y = 2.4 + Math.sin(time * 2.0 + i) * 0.05;
+                    dummy.rotation.x = Math.sin(time * 1.5 + i) * 0.05;
+                    dummy.rotation.z = Math.cos(time * 1.8 + i) * 0.05;
+                    dummy.updateMatrix();
+                    instBoats.setMatrixAt(i, dummy.matrix);
+                    boatsUpdated = true;
+                }
+            }
+            if (boatsUpdated) instBoats.instanceMatrix.needsUpdate = true;
+        }
 
-                            while (!valid && attempts < 15) {
-                                nx = playerX + (Math.random() - 0.5) * treeDist * 2.0;
-                                nz = playerZ + (Math.random() - 0.5) * treeDist * 2.0;
-                                tmpH2 = getMeshHeight(nx, nz);
-                                pathVal = getPathStrength(nx, nz);
-                                cellKey = getTreeCell(nx, nz);
+        // Floating Castles
+        if (instCastles) {
+            let castlesUpdated = false;
+            for (let i = currentFrame % 2; i < CASTLE_COUNT; i += 2) {
+                instCastles.getMatrixAt(i, dummy.matrix);
+                dummy.position.setFromMatrixPosition(dummy.matrix);
+                
+                if (Math.abs(dummy.position.x - playerX) > dist * 2.0 || Math.abs(dummy.position.z - playerZ) > dist * 2.0 || dummy.position.y < -500) {
+                    const nx = playerX + (Math.random() - 0.5) * dist * 4.0;
+                    const nz = playerZ + (Math.random() - 0.5) * dist * 4.0;
+                    
+                    dummy.position.set(nx, 150 + Math.random() * 100, nz);
+                    dummy.rotation.set(0, Math.random() * Math.PI, 0);
+                    dummy.scale.setScalar(2.0 + Math.random() * 1.0); 
+                    dummy.updateMatrix();
+                    instCastles.setMatrixAt(i, dummy.matrix);
+                    castlesUpdated = true;
+                } else if (dummy.position.y > 0) {
+                    // Castles float gently in the sky
+                    dummy.rotation.setFromRotationMatrix(dummy.matrix);
+                    dummy.position.y += Math.sin(time * 0.5 + i) * 0.02;
+                    dummy.rotation.y += 0.001;
+                    dummy.updateMatrix();
+                    instCastles.setMatrixAt(i, dummy.matrix);
+                    castlesUpdated = true;
+                }
+            }
+            if (castlesUpdated) instCastles.instanceMatrix.needsUpdate = true;
+        }
 
-                                let isClearing = snoise(nx * 0.003, nz * 0.003 + 50) > 0.2;
-
-                                if (!isClearing && tmpH2 > 1.0 && tmpH2 < 45 && pathVal < 0.1 && (Math.random() > 0.3)) {
-                                    let biomeVal = getBiome(nx, nz);
-                                    if (biomeVal === biomeIdx && !treeGrid.has(cellKey)) {
-                                        valid = true;
-                                    }
+        
+        // Custom Nature Clusters
+        if (natureLoaded) {
+            for (let m = 0; m < instNatureItems.length; m++) {
+                const inst = instNatureItems[m];
+                if (!inst) continue;
+                
+                let updated = false;
+                for (let i = currentFrame % 5; i < inst.count; i += 5) {
+                    inst.getMatrixAt(i, dummy.matrix);
+                    dummy.position.setFromMatrixPosition(dummy.matrix);
+                    
+                    if (Math.abs(dummy.position.x - playerX) > dist || Math.abs(dummy.position.z - playerZ) > dist || dummy.position.y < -500) {
+                        let found = false;
+                        for (let tries = 0; tries < 5; tries++) {
+                            const nx = playerX + (Math.random() - 0.5) * dist * 2.0;
+                            const nz = playerZ + (Math.random() - 0.5) * dist * 2.0;
+                            
+                            // Check if this cell belongs to this model type
+                            if (getNatureSpawn(nx, nz) === m) {
+                                const h = getMeshHeight(nx, nz);
+                                if (h > 2.6 && getPathStrength(nx, nz) < 0.1) {
+                                    dummy.position.set(nx, h, nz);
+                                    dummy.rotation.set(0, Math.random() * Math.PI * 2, 0);
+                                    
+                                    // Randomize scale for variety
+                                    const s = 0.5 + Math.random() * 1.5; 
+                                    dummy.scale.set(s, s, s);
+                                    
+                                    dummy.updateMatrix();
+                                    inst.setMatrixAt(i, dummy.matrix);
+                                    updated = true;
+                                    found = true;
+                                    break;
                                 }
-                                attempts++;
                             }
-
-                            if (valid) {
-                                treeGrid.add(cellKey);
-                                dummy.position.set(nx, tmpH2 - 0.3, nz);
-                                dummy.rotation.set(0, Math.random() * Math.PI * 2, 0);
-                                let scale = 0.4 + Math.random() * 0.6;
-                                dummy.scale.setScalar(scale);
-                            } else {
-                                dummy.position.set(0, -1000, 0);
-                            }
+                        }
+                        if (!found) {
+                            dummy.position.set(0, -1000, 0);
                             dummy.updateMatrix();
-                            instMesh.setMatrixAt(i, dummy.matrix);
-                            assetUpdated = true;
+                            inst.setMatrixAt(i, dummy.matrix);
+                            updated = true;
                         }
                     }
-                    if (assetUpdated) instMesh.instanceMatrix.needsUpdate = true;
                 }
+                if (updated) inst.instanceMatrix.needsUpdate = true;
             }
         }
 
@@ -1729,13 +1472,13 @@ console.error = function(...args) {
             if (Math.abs(dummy.position.x - playerX) > dist || Math.abs(dummy.position.z - playerZ) > dist || dummy.position.y < -500) {
                 const nx = playerX + (Math.random() - 0.5) * dist * 2.0;
                 const nz = playerZ + (Math.random() - 0.5) * dist * 2.0;
-                const tmpH = getMeshHeight(nx, nz);
+                const h = getMeshHeight(nx, nz);
                 
                 let isClearing = snoise(nx * 0.003, nz * 0.003 + 50) > 0.2;
                 let validFlower = isClearing ? (Math.random() < 0.8) : (Math.random() < 0.05);
 
-                if (validFlower && tmpH > 2.0 && getPathStrength(nx, nz) < 0.1) {
-                    dummy.position.set(nx, tmpH, nz);
+                if (validFlower && h > 2.0 && getPathStrength(nx, nz) < 0.1) {
+                    dummy.position.set(nx, h, nz);
                     dummy.rotation.set(0, Math.random() * Math.PI, 0);
                     dummy.scale.set(1, 1, 1);
                     let cNoise = snoise(nx * 0.005, nz * 0.005);
@@ -1761,7 +1504,7 @@ console.error = function(...args) {
             let ax = animalData[i * 4 + 0];
             let az = animalData[i * 4 + 1];
             let offset = animalData[i * 4 + 2];
-            let tmpH3 = getMeshHeight(ax, az);
+            let h = getMeshHeight(ax, az);
 
             // Move animal slowly
             ax += Math.sin(time * 0.5 + offset) * dt * 2.0;
@@ -1771,8 +1514,8 @@ console.error = function(...args) {
             if (Math.abs(ax - playerX) > dist || Math.abs(az - playerZ) > dist) {
                  ax = playerX + (Math.random() - 0.5) * dist * 2.0;
                  az = playerZ + (Math.random() - 0.5) * dist * 2.0;
-                 tmpH3 = getMeshHeight(ax, az);
-                 if (tmpH3 > 2.0 && tmpH3 < 25 && getPathStrength(ax, az) < 0.2) {
+                 h = getMeshHeight(ax, az);
+                 if (h > 2.0 && h < 25 && getPathStrength(ax, az) < 0.2) {
                      animalData[i * 4 + 0] = ax;
                      animalData[i * 4 + 1] = az;
                  } else {
@@ -1785,8 +1528,8 @@ console.error = function(...args) {
                  animalData[i * 4 + 1] = az;
             }
 
-            if (tmpH3 > 2.0 && tmpH3 < 25) {
-                dummy.position.set(ax, tmpH3, az);
+            if (h > 2.0 && h < 25) {
+                dummy.position.set(ax, h, az);
                 dummy.rotation.set(0, time * 0.5 + offset, 0);
                 dummy.scale.setScalar(0.8);
             } else {
@@ -1796,7 +1539,7 @@ console.error = function(...args) {
             instAnimals.setMatrixAt(i, dummy.matrix);
         }
 
-        instCrystals.instanceMatrix.needsUpdate = true;
+        instClouds.instanceMatrix.needsUpdate = true;
         instAnimals.instanceMatrix.needsUpdate = true;
 
 
@@ -1927,84 +1670,65 @@ console.error = function(...args) {
 
     
     
-    // Biome-Aware Nature Assets - GLB models loaded from ./models/, one InstancedMesh
-    // per model per biome, stored in loadedBiomeMeshes[biomeIndex] = [InstancedMesh, ...]
-    const biomeModelFiles = [
-        ['Shroom.glb', 'HalucogenTree.glb', 'CaveCoralRock.glb', 'Cactus.glb'],                    // Biome 0: Mycelium
-        ['PortalRuby.glb', 'PortalUranium.glb', 'Ruby.glb', 'RubyTier3.glb', 'AmethistTier2.glb'],  // Biome 1: Sakura
-        ['CrystalBlue.glb', 'CystalA01.glb', 'Tier2Diamond.glb', 'UraniumTier3.glb', 'DesertRock.glb'] // Biome 2: Lotus
+    const natureItemFiles = [
+        'AmethistTier2.glb', 'Cactus.glb', 'CaveCoralRock.glb', 'CrystalBlue.glb', 
+        'CystalA01.glb', 'DesertRock.glb', 'HalucogenTree.glb', 'PortalRuby.glb', 
+        'PortalUranium.glb', 'Ruby.glb', 'RubyTier3.glb', 'Shroom.glb', 
+        'Tier2Diamond.glb', 'UraniumTier3.glb'
     ];
-    const biomeMaterials = [matMycelium, matSakura, matLotus];
-    const loadedBiomeMeshes = [[], [], []];
-    let biomeAssetsLoaded = false;
-
-    function loadNatureAssets() {
-        const allPromises = [];
-
-        biomeModelFiles.forEach((files, biomeIdx) => {
-            const mat = biomeMaterials[biomeIdx];
-
-            files.forEach((file) => {
-                const p = new Promise((resolve) => {
-                    gltfLoader.load(
-                        './models/' + file,
-                        (gltf) => {
-                            let mesh = null;
-                            gltf.scene.traverse((c) => {
-                                if (!mesh && c.isMesh) mesh = c;
-                            });
-                            if (!mesh) { resolve(); return; }
-
-                            const geometry = mesh.geometry.clone();
-                            mesh.updateWorldMatrix(true, false);
-                            geometry.applyMatrix4(mesh.matrixWorld);
-                            geometry.computeBoundingBox();
-                            const box = geometry.boundingBox;
-                            const size = new THREE.Vector3();
-                            box.getSize(size);
-                            const maxDim = Math.max(size.x, size.y, size.z);
-                            const targetScale = maxDim > 0 ? (1.0 / maxDim) : 1.0;
-                            geometry.scale(targetScale, targetScale, targetScale);
-                            const center = new THREE.Vector3();
-                            box.getCenter(center).multiplyScalar(targetScale);
-                            geometry.translate(-center.x, -center.y * 0.5, -center.z);
-
-                            const count = Math.max(1, Math.floor(150 * TREE_MULT));
-                            const inst = new THREE.InstancedMesh(geometry, mat, count);
-                            inst.castShadow = true;
-                            inst.receiveShadow = true;
-                            inst.frustumCulled = false;
-                            inst.maxCount = count;
-
-                            const d = new THREE.Object3D();
-                            d.position.set(0, -1000, 0);
-                            d.updateMatrix();
-                            for (let i = 0; i < count; i++) {
-                                inst.setMatrixAt(i, d.matrix);
-                            }
-                            inst.instanceMatrix.needsUpdate = true;
-
-                            scene.add(inst);
-                            loadedBiomeMeshes[biomeIdx].push(inst);
-                            resolve();
-                        },
-                        undefined,
-                        (err) => {
-                            console.warn('Failed to load nature asset:', file, err);
-                            resolve();
-                        }
-                    );
-                });
-                allPromises.push(p);
+    const instNatureItems = [];
+    let natureLoaded = false;
+    
+    // Load all nature items
+    let loadedCount = 0;
+    natureItemFiles.forEach((file, index) => {
+        gltfLoader.load('nature_items/' + file, (gltf) => {
+            let mesh = null;
+            gltf.scene.traverse((c) => {
+                if (!mesh && c.isMesh) {
+                    mesh = c;
+                }
             });
+            if (mesh) {
+                // Adjust scale so it fits the world
+                const box = new THREE.Box3().setFromObject(mesh);
+                const size = new THREE.Vector3();
+                box.getSize(size);
+                const maxDim = Math.max(size.x, size.y, size.z);
+                const targetScale = maxDim > 0 ? (5.0 / maxDim) : 1.0;
+                
+                mesh.geometry.scale(targetScale, targetScale, targetScale);
+                
+                // Allow them to glow if they want, but use their original materials.
+                // Or we can just use the exact material they came with!
+                const inst = new THREE.InstancedMesh(mesh.geometry, mesh.material, 100);
+                inst.castShadow = true;
+                inst.receiveShadow = true;
+                
+                // Initially hide them
+                for (let i = 0; i < 100; i++) {
+                    const dummy = new THREE.Object3D();
+                    dummy.position.set(0, -1000, 0);
+                    dummy.updateMatrix();
+                    inst.setMatrixAt(i, dummy.matrix);
+                }
+                
+                scene.add(inst); // directly add to scene instead of array since they load async
+                instNatureItems[index] = inst;
+            }
+            loadedCount++;
+            if (loadedCount === natureItemFiles.length) {
+                natureLoaded = true;
+            }
         });
+    });
 
-        Promise.all(allPromises).then(() => {
-            biomeAssetsLoaded = true;
-        });
+    function getNatureSpawn(nx, nz) {
+        const sx = Math.floor(nx / 250);
+        const sz = Math.floor(nz / 250);
+        const hash = Math.abs(Math.sin(sx * 12.9898 + sz * 78.233) * 43758.5453);
+        return Math.floor(hash * natureItemFiles.length);
     }
-
-    loadNatureAssets();
 
 
     // ==========================================
@@ -2051,9 +1775,8 @@ console.error = function(...args) {
             document.getElementById('hide-ui-toggle').style.opacity = uiVisible ? '1' : '0.5';
 
             if (!pcControlsShown) {
-                document.getElementById('touch-controls').style.opacity = uiVisible ? '1' : '0.3';
-                const brake = document.getElementById('brake-btn');
-                if (brake) brake.style.display = uiVisible ? 'flex' : 'none';
+                document.getElementById('touch-controls').style.opacity = uiVisible ? '1' : '0';
+                document.getElementById('touch-controls').style.pointerEvents = uiVisible ? 'auto' : 'none';
             }
         }
     });
@@ -2375,7 +2098,6 @@ console.error = function(...args) {
         }
         
         waterUniforms.uTime.value = time;
-        globalUniforms.uTime.value = time;
         
         currentFrame++;
         framesThisSecond++;
@@ -2517,8 +2239,6 @@ console.error = function(...args) {
         dirLight.shadow.camera.bottom = -shadowSize;
         dirLight.shadow.camera.updateProjectionMatrix();
 
-        globalUniforms.uTime.value = time;
-        globalUniforms.uPlayerPos.value.copy(playerGrp.position);
         updateInstances(playerGrp.position.x, playerGrp.position.z, time, dt, currentYaw);
         updateBirds(playerGrp.position.x, playerGrp.position.y, playerGrp.position.z, time, dt);
         updateFish(playerGrp.position.x, playerGrp.position.y, playerGrp.position.z, time, dt);
@@ -2967,6 +2687,4 @@ console.error = function(...args) {
     logicTimer = 0;
 
     animate();
-  </script>
-</body>
-</html>
+  
