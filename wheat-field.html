@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wheat Field Animation</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            background: linear-gradient(135deg, #87CEEB 0%, #E0F6FF 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: Arial, sans-serif;
+        }
+
+        canvas {
+            display: block;
+            background: linear-gradient(180deg, #87CEEB 0%, #E0F6FF 50%, #F5DEB3 100%);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+        }
+
+        .controls {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 15px 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            z-index: 10;
+        }
+
+        .controls label {
+            display: block;
+            margin: 8px 0;
+            font-size: 14px;
+            color: #333;
+        }
+
+        .controls input[type="range"] {
+            width: 150px;
+            cursor: pointer;
+        }
+
+        .info {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-size: 12px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+
+    <div class="controls">
+        <label>Wind Speed: <input type="range" id="windSpeed" min="0" max="2" step="0.1" value="0.5"></label>
+        <label>Density: <input type="range" id="density" min="100" max="1000" step="50" value="300"></label>
+        <label>Sway: <input type="range" id="sway" min="0" max="1" step="0.1" value="0.3"></label>
+    </div>
+
+    <div class="info">
+        💨 Move your mouse to create wind | Adjust controls above
+    </div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        let mouseX = canvas.width / 2;
+        let mouseY = canvas.height / 2;
+        let windForce = 0;
+
+        const controls = {
+            windSpeed: 0.5,
+            density: 300,
+            sway: 0.3
+        };
+
+        document.getElementById('windSpeed').addEventListener('input', (e) => {
+            controls.windSpeed = parseFloat(e.target.value);
+        });
+
+        document.getElementById('density').addEventListener('input', (e) => {
+            controls.density = parseInt(e.target.value);
+        });
+
+        document.getElementById('sway').addEventListener('input', (e) => {
+            controls.sway = parseFloat(e.target.value);
+        });
+
+        // Create wheat blades
+        const blades = [];
+
+        class Blade {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.baseY = y;
+                this.height = Math.random() * 80 + 40;
+                this.width = Math.random() * 2 + 1;
+                this.angle = 0;
+                this.targetAngle = 0;
+                this.hue = Math.random() * 30 + 50; // Golden-yellow tones
+                this.saturation = Math.random() * 30 + 60;
+                this.lightness = Math.random() * 15 + 45;
+                this.color = `hsl(${this.hue}, ${this.saturation}%, ${this.lightness}%)`;
+            }
+
+            update(windForce, mouseX, mouseY, time) {
+                // Wind influence
+                this.targetAngle = Math.sin(time * 0.001 + this.x * 0.01) * controls.sway;
+                this.targetAngle += windForce * 0.5;
+
+                // Mouse influence (creates localized wind effect)
+                const dx = mouseX - this.x;
+                const dy = mouseY - this.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+
+                if (dist < 150) {
+                    const force = (150 - dist) / 150;
+                    this.targetAngle += Math.atan2(dy, dx) * force * 0.3;
+                }
+
+                // Smooth angle interpolation
+                this.angle += (this.targetAngle - this.angle) * 0.05;
+            }
+
+            draw(ctx) {
+                ctx.save();
+                ctx.translate(this.x, this.baseY);
+                ctx.rotate(this.angle);
+
+                // Draw gradient for blade
+                const gradient = ctx.createLinearGradient(0, 0, 0, this.height);
+                gradient.addColorStop(0, this.color);
+                gradient.addColorStop(1, `hsla(${this.hue}, ${this.saturation}%, 25%, 0.9)`);
+
+                ctx.fillStyle = gradient;
+                ctx.strokeStyle = `hsla(${this.hue}, ${this.saturation}%, 20%, 0.6)`;
+                ctx.lineWidth = this.width * 0.5;
+                ctx.lineCap = 'round';
+
+                ctx.beginPath();
+                ctx.moveTo(-this.width / 2, 0);
+                ctx.quadraticCurveTo(0, this.height * 0.5, this.width * 0.3, this.height);
+                ctx.lineTo(this.width / 2, this.height);
+                ctx.lineTo(-this.width / 2, 0);
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.restore();
+            }
+        }
+
+        function initializeBlades() {
+            blades.length = 0;
+            for (let i = 0; i < controls.density; i++) {
+                const x = Math.random() * canvas.width;
+                const y = canvas.height * 0.6 + Math.random() * canvas.height * 0.4;
+                blades.push(new Blade(x, y));
+            }
+        }
+
+        // Mouse tracking for wind effect
+        document.addEventListener('mousemove', (e) => {
+            mouseX = e.clientX;
+            mouseY = e.clientY;
+        });
+
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        });
+
+        let time = 0;
+        let windCounter = 0;
+
+        function animate() {
+            // Clear canvas with sky gradient
+            const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            gradient.addColorStop(0, '#87CEEB');
+            gradient.addColorStop(0.5, '#E0F6FF');
+            gradient.addColorStop(1, '#F5DEB3');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Update wind
+            windCounter += controls.windSpeed * 0.01;
+            windForce = Math.sin(windCounter) * controls.windSpeed;
+
+            // Draw blades
+            blades.forEach(blade => {
+                blade.update(windForce, mouseX, mouseY, time);
+                blade.draw(ctx);
+            });
+
+            time++;
+            requestAnimationFrame(animate);
+        }
+
+        initializeBlades();
+        animate();
+    </script>
+</body>
+</html>

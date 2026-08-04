@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Interactive WebGPU-inspired grassland simulation with mouse-driven wind physics.">
+    <title>Gwanyan - Interactive Grassland</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            background: #000;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        #canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        .overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .controls {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(20, 20, 20, 0.95);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+            z-index: 10;
+            pointer-events: all;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            max-width: 300px;
+        }
+
+        .controls h2 {
+            color: #fff;
+            font-size: 16px;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600;
+        }
+
+        .control-group {
+            margin-bottom: 16px;
+        }
+
+        .control-group label {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: #aaa;
+            font-size: 12px;
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .control-group input[type="range"] {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            -webkit-appearance: none;
+            appearance: none;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 2px;
+            outline: none;
+        }
+
+        .control-group input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: #4CAF50;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(76, 175, 80, 0.5);
+        }
+
+        .control-group input[type="range"]::-moz-range-thumb {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: #4CAF50;
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 2px 8px rgba(76, 175, 80, 0.5);
+        }
+
+        .value {
+            color: #4CAF50;
+            font-weight: 600;
+            font-size: 11px;
+        }
+
+        .info {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(20, 20, 20, 0.95);
+            padding: 15px 20px;
+            border-radius: 12px;
+            font-size: 12px;
+            color: #aaa;
+            z-index: 10;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            pointer-events: all;
+        }
+
+        .info-title {
+            color: #4CAF50;
+            font-weight: 600;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .fps {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(20, 20, 20, 0.95);
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-size: 12px;
+            color: #4CAF50;
+            font-family: 'Monaco', 'Courier New', monospace;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            z-index: 10;
+        }
+
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            width: 100%;
+            margin-top: 10px;
+            transition: background 0.3s;
+        }
+
+        button:hover {
+            background: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+
+    <div class="fps" id="fps">0 FPS</div>
+
+    <div class="controls">
+        <h2>Grassland Settings</h2>
+
+        <div class="control-group">
+            <label>
+                Wind Force
+                <span class="value" id="windForceValue">0.5</span>
+            </label>
+            <input type="range" id="windForce" min="0" max="2" step="0.1" value="0.5">
+        </div>
+
+        <div class="control-group">
+            <label>
+                Grass Density
+                <span class="value" id="densityValue">500</span>
+            </label>
+            <input type="range" id="density" min="100" max="1000" step="50" value="500">
+        </div>
+
+        <div class="control-group">
+            <label>
+                Blade Height
+                <span class="value" id="bladeHeightValue">100</span>
+            </label>
+            <input type="range" id="bladeHeight" min="40" max="150" step="10" value="100">
+        </div>
+
+        <div class="control-group">
+            <label>
+                Sway Amount
+                <span class="value" id="swayValue">0.3</span>
+            </label>
+            <input type="range" id="sway" min="0" max="1" step="0.1" value="0.3">
+        </div>
+
+        <button id="resetBtn">Reset Scene</button>
+    </div>
+
+    <div class="info">
+        <div class="info-title">💨 Interactive Controls</div>
+        Move your mouse to create wind • Adjust controls to customize the grassland
+    </div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d', { alpha: false });
+
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        let mouseX = canvas.width / 2;
+        let mouseY = canvas.height / 2;
+        let targetMouseX = mouseX;
+        let targetMouseY = mouseY;
+        let windForce = 0;
+        let time = 0;
+        let frameCount = 0;
+        let lastFpsTime = performance.now();
+
+        const settings = {
+            windForce: 0.5,
+            density: 500,
+            bladeHeight: 100,
+            sway: 0.3
+        };
+
+        // Update control values
+        document.getElementById('windForce').addEventListener('input', (e) => {
+            settings.windForce = parseFloat(e.target.value);
+            document.getElementById('windForceValue').textContent = settings.windForce.toFixed(1);
+        });
+
+        document.getElementById('density').addEventListener('input', (e) => {
+            settings.density = parseInt(e.target.value);
+            document.getElementById('densityValue').textContent = settings.density;
+            initializeBlades();
+        });
+
+        document.getElementById('bladeHeight').addEventListener('input', (e) => {
+            settings.bladeHeight = parseInt(e.target.value);
+            document.getElementById('bladeHeightValue').textContent = settings.bladeHeight;
+        });
+
+        document.getElementById('sway').addEventListener('input', (e) => {
+            settings.sway = parseFloat(e.target.value);
+            document.getElementById('swayValue').textContent = settings.sway.toFixed(1);
+        });
+
+        document.getElementById('resetBtn').addEventListener('click', () => {
+            initializeBlades();
+        });
+
+        // Blade class with physics
+        class GrassBlade {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.baseY = y;
+                this.height = settings.bladeHeight * (0.6 + Math.random() * 0.4);
+                this.width = Math.random() * 3 + 1.5;
+                this.angle = 0;
+                this.velocity = 0;
+                this.acceleration = 0;
+                this.color = this.generateColor();
+                this.tip = { x: 0, y: 0 };
+            }
+
+            generateColor() {
+                const hue = Math.random() * 40 + 80;
+                const saturation = Math.random() * 30 + 50;
+                const lightness = Math.random() * 25 + 35;
+                return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+            }
+
+            update(windForce, mouseX, mouseY, time) {
+                // Wind wave
+                const baseWave = Math.sin(time * 0.002 + this.x * 0.01) * settings.sway;
+                let targetAngle = baseWave + windForce * 0.4;
+
+                // Mouse influence (wind vortex effect)
+                const dx = mouseX - this.x;
+                const dy = mouseY - this.baseY;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+
+                if (dist < 200) {
+                    const influence = Math.pow(1 - dist / 200, 2);
+                    const angle = Math.atan2(dy, dx);
+                    targetAngle += angle * influence * 0.6;
+                }
+
+                // Physics - spring-like behavior
+                this.acceleration = (targetAngle - this.angle) * 0.02;
+                this.velocity += this.acceleration;
+                this.velocity *= 0.95; // Damping
+                this.angle += this.velocity;
+
+                // Calculate blade tip
+                this.tip.x = this.x + Math.sin(this.angle) * this.height;
+                this.tip.y = this.baseY - Math.cos(this.angle) * this.height;
+            }
+
+            draw(ctx) {
+                ctx.save();
+
+                // Draw blade with gradient
+                const gradient = ctx.createLinearGradient(this.x, this.baseY, this.tip.x, this.tip.y);
+                gradient.addColorStop(0, this.color);
+                gradient.addColorStop(0.7, this.color);
+                gradient.addColorStop(1, `hsla(${this.color.match(/\d+/)[0]}, 50%, 25%, 0.8)`);
+
+                ctx.fillStyle = gradient;
+                ctx.strokeStyle = this.color;
+                ctx.lineWidth = this.width;
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+
+                // Blade shape with slight curve
+                ctx.beginPath();
+                ctx.moveTo(this.x, this.baseY);
+
+                const controlX = this.x + Math.sin(this.angle) * this.height * 0.5;
+                const controlY = this.baseY - Math.cos(this.angle) * this.height * 0.5;
+
+                ctx.quadraticCurveTo(controlX, controlY, this.tip.x, this.tip.y);
+                ctx.stroke();
+
+                ctx.restore();
+            }
+        }
+
+        const blades = [];
+
+        function initializeBlades() {
+            blades.length = 0;
+            for (let i = 0; i < settings.density; i++) {
+                const x = Math.random() * canvas.width;
+                const y = canvas.height * 0.55 + Math.random() * canvas.height * 0.45;
+                blades.push(new GrassBlade(x, y));
+            }
+        }
+
+        // Mouse tracking
+        document.addEventListener('mousemove', (e) => {
+            targetMouseX = e.clientX;
+            targetMouseY = e.clientY;
+        });
+
+        // Smooth mouse following
+        function updateMousePosition() {
+            mouseX += (targetMouseX - mouseX) * 0.1;
+            mouseY += (targetMouseY - mouseY) * 0.1;
+        }
+
+        // Window resize
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        });
+
+        // Sky gradient generation
+        function drawSky() {
+            const skyGradient = ctx.createLinearGradient(0, 0, 0, canvas.height * 0.5);
+            skyGradient.addColorStop(0, '#1a1a2e');
+            skyGradient.addColorStop(0.5, '#16213e');
+            skyGradient.addColorStop(1, '#0f3460');
+
+            ctx.fillStyle = skyGradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height * 0.5);
+
+            // Ground
+            const groundGradient = ctx.createLinearGradient(0, canvas.height * 0.5, 0, canvas.height);
+            groundGradient.addColorStop(0, '#2a2a1a');
+            groundGradient.addColorStop(1, '#1a1a0a');
+
+            ctx.fillStyle = groundGradient;
+            ctx.fillRect(0, canvas.height * 0.5, canvas.width, canvas.height * 0.5);
+        }
+
+        // Animation loop
+        let windCounter = 0;
+
+        function animate() {
+            // Draw background
+            drawSky();
+
+            // Update wind
+            windCounter += settings.windForce * 0.005;
+            windForce = Math.sin(windCounter) * settings.windForce;
+
+            // Update mouse
+            updateMousePosition();
+
+            // Update and draw blades
+            for (let blade of blades) {
+                blade.update(windForce, mouseX, mouseY, time);
+                blade.draw(ctx);
+            }
+
+            // Update FPS
+            frameCount++;
+            const now = performance.now();
+            if (now - lastFpsTime >= 1000) {
+                document.getElementById('fps').textContent = frameCount + ' FPS';
+                frameCount = 0;
+                lastFpsTime = now;
+            }
+
+            time++;
+            requestAnimationFrame(animate);
+        }
+
+        // Initialize and start
+        initializeBlades();
+        animate();
+    </script>
+</body>
+</html>
